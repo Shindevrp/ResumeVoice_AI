@@ -1,0 +1,85 @@
+services:
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: resumevoice-vllm
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - MODEL=${RESUMEVOICE_LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+      - MAX_MODEL_LEN=${RESUMEVOICE_VLLM_MAX_LEN:-4096}
+      - GPU_MEMORY_UTILIZATION=${RESUMEVOICE_VLLM_GPU_UTIL:-0.90}
+      - DTYPE=${RESUMEVOICE_VLLM_DTYPE:-float16}
+      - QUANTIZATION=awq
+      - API_KEY=${RESUMEVOICE_VLLM_API_KEY:-EMPTY}
+    command:
+      - "--model"
+      - "${RESUMEVOICE_LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}"
+      - "--max-model-len"
+      - "${RESUMEVOICE_VLLM_MAX_LEN:-4096}"
+      - "--gpu-memory-utilization"
+      - "${RESUMEVOICE_VLLM_GPU_UTIL:-0.90}"
+      - "--dtype"
+      - "${RESUMEVOICE_VLLM_DTYPE:-float16}"
+      - "--quantization"
+      - "awq"
+      - "--port"
+      - "8000"
+      - "--host"
+      - "0.0.0.0"
+    ports:
+      - "8001:8000"
+    volumes:
+      - vllm_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - resumevoice-net
+
+  resumevoice:
+    build: .
+    container_name: resumevoice-app
+    depends_on:
+      vllm:
+        condition: service_healthy
+    environment:
+      - RESUMEVOICE_LLM_URL=http://vllm:8000/v1
+      - RESUMEVOICE_LLM_MODEL=${RESUMEVOICE_LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+      - RESUMEVOICE_STT_MODEL=${RESUMEVOICE_STT_MODEL:-base}
+      - RESUMEVOICE_STT_DEVICE=${RESUMEVOICE_STT_DEVICE:-cpu}
+      - RESUMEVOICE_STT_COMPUTE=int8
+      - RESUMEVOICE_TTS_MODEL=/app/models/piper/en_US-lessac-medium.onnx
+      - RESUMEVOICE_VAD_THRESHOLD=0.5
+    ports:
+      - "8000:8000"
+    volumes:
+      - stt_cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - resumevoice-net
+
+volumes:
+  vllm_cache:
+  stt_cache:
+
+networks:
+  resumevoice-net:
+    driver: bridge

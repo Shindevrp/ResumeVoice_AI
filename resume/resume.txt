@@ -1,0 +1,82 @@
+SHINDE VINAYAK RAO PATIL
+AI / ML Engineer · NLP & Speech Processing · Real-Time AI Systems
++91-8790249814 · shindevinayakraopatil@gmail.com · linkedin.com/in/shindeaidevloper · github.com/Shindevrp · Hyderabad, India
+
+PROFESSIONAL SUMMARY
+GCSP Scholar and MS candidate at IIIT Hyderabad specialising in NLP, deep learning, and real-time speech AI. Currently building next-generation bilingual Arabic-English voice AI systems at Nabhe, with hands-on experience across the full ML lifecycle — from data preparation and model fine-tuning to production deployment on specialised hardware (Qualcomm Cloud AI 100). Holds a published journal paper, an accepted conference paper, and a filed patent, alongside recognition as a top hackathon finisher and departmental awardee.
+
+PROFESSIONAL EXPERIENCE
+AI Engineer, Nabhe (Jan 2026 - Present, Hyderabad)
+- Architecting and optimising a real-time bilingual Arabic-English Speech-to-Speech (S2SCS) pipeline for Gulf enterprise customer service, targeting sub-200 ms end-to-end latency.
+- Deploying Whisper large-v3-turbo via QEFFAutoModelForSpeechSeq2Seq on Qualcomm Cloud AI 100 accelerators; tuned Arabic confidence thresholds and audio-chunk windows to cut false-drop rate by about 30%.
+- Integrated Qwen/Qwen3-32B for Arabic translation and Jais-13B-chat for context-aware response generation; applied Unicode NFKC normalisation to eliminate Arabic rendering artefacts.
+- Engineered novel code-switching feature extraction (Stage 6: CSI, Matrix Language, Embedded Language Islands) using XLM-R subword alignment — identified as the primary publishable differentiator.
+- Driving publication strategy targeting ArabicNLP 2026 Workshop (ACL), IEEE SLT 2026, and IEEE Access; paper synthesises a 10-stage pipeline with bespoke CS-aware evaluation metrics (CS-WER, per-token LID F1, CS-BLEU, MOS).
+
+AI Automation Intern, Talbot Health Services via DSIG IT Solutions (Sep 2025 - Dec 2025, Remote)
+- Built a RAG-based system to automate internal SQL query and operations retrieval for a US healthcare client; reduced manual lookup time significantly.
+- Developed agentic AI workflows for denial management and automated rules-engine orchestration using Python, voice transcription, and Stripe integration.
+
+AI/ML Intern, BYOL Academy (Sep 2025 - Dec 2025)
+- Designed, trained, evaluated, and optimised predictive models for AI-driven solutions in medical education using Python and standard ML libraries.
+
+NLP Research Intern, Speech Processing Lab, IIIT Hyderabad (Jul 2023 - Nov 2023, Hyderabad)
+- Researched emphasis patterns in spoken language vs. text summarisation using TEDx data; built keyword-extraction and summary-generation models for spoken content.
+
+AI Developer Intern, Plausibility Solutions (Oct 2023 - Apr 2024, Bengaluru)
+- Built and deployed multiple RAG-based chatbots using LLMs; designed end-to-end RAG pipelines for contextual response generation with Pinecone vector store.
+- Fine-tuned LLMs for domain-specific retrieval accuracy; developed multi-agent orchestration systems using Agentica AI.
+
+AI Developer Intern, Eunoia Innovations Pvt. Ltd. (Feb 2022 - Feb 2023, Hyderabad)
+- Developed AI models for underwater robotics: analysed water sensor data and integrated ML inference with hardware components (thrusters, actuators).
+
+EDUCATION
+M.S. in Data Science (Information Technology), CGPA 8.00 (2024 - Present)
+International Institute of Information Technology Hyderabad (IIIT-H) - GCSP Scholar
+B.Tech. in Computer Science and Engineering, CGPA 7.00 (2020 - 2024)
+Hyderabad Institute of Technology and Management (HITAM)
+
+TECHNICAL SKILLS
+Languages: Python, Java, MATLAB
+ML / DL: TensorFlow, PyTorch, Scikit-learn, OpenCV, Pandas, NumPy, SciPy
+NLP & Speech: Transformers, Whisper (large-v3-turbo), XLM-R, Qwen-Audio, Jais-13B, TTS/STT pipelines, Silero VAD, CAMeL Tools
+Gen AI & RAG: LangChain, OpenAI API, RAG pipelines, Agentica AI, LLM fine-tuning, Vision-Language Models (CLIP, BLIP, Flamingo)
+Hardware / Infra: Qualcomm Cloud AI 100, QEFFAutoModelForSpeechSeq2Seq, ONNX QNN, Docker, AWS (S3, Bedrock, ECS), CI/CD
+Databases: MySQL, SQLAlchemy, MongoDB, Redis, Pinecone
+Web & APIs: FastAPI, REST API, React.js
+Tooling: Git, GitLab, Jupyter, Google Colab, Figma, Tableau, AWS QuickSight
+
+PATENTS & PUBLICATIONS
+[J.1] Automated Bot Detection on Twitter Using URL Patterns and Learning Automata — Int. J. Eng. Tech. & Mgmt. Sci., Vol. 8, Issue 3, May-Jun 2024. DOI: 10.46647/ijetms.2024.v08i03.025. PUBLISHED
+[C.1] Speaking Hands: Advancing Communication with Gesture Recognition Systems — ICCICN-24 (Int. Conference on Computational Intelligence & Communication Networks). ACCEPTED
+[P.1] Real-Time Violence Detection System Using AI for CCTV Surveillance — Patent Application No. 202341029626. ML algorithm detecting violence in real-time CCTV streams with immediate alert generation.
+[S.1] DialectSignal: Real-Time Bilingual Arabic-English Speech-to-Speech for Gulf Enterprise — In preparation; targeting ArabicNLP 2026 (ACL) / IEEE SLT 2026 / IEEE Access.
+
+KEY PROJECTS
+AutoTrend AI - Dynamic Topic Tracking from App Store Reviews
+- Built an AI agentic pipeline using GPT-4o and LangChain to autonomously detect, cluster, and track trending user feedback from daily app store reviews.
+- Integrated NLTK / fasttext preprocessing and Pinecone vector similarity; daily rollups in CSV/Parquet with Matplotlib heatmaps for product-team dashboards.
+
+AI Mentor Chatbot - Medical Exam Prep Assistant
+- Conversational AI assistant (GPT-3.5 + RAG) drawing from a medical knowledge base; supports on-demand quiz generation via tool-calling.
+
+readmapper CLI - LLM-Powered Diagram Generator
+- Developer CLI tool (typer + tree-sitter + litellm + rich) that auto-generates Mermaid architecture diagrams from source code and injects them into README files; uses Ollama for offline LLM inference.
+
+LEADERSHIP & COMMUNITY
+Student Placement Coordinator, IIIT Hyderabad (May 2025 - Present)
+- Coordinated end-to-end campus recruitment for 50+ companies; liaised between recruiters, HR teams, and students; engaged 50+ CEOs and senior business leaders.
+
+Student Dean - IIIC & Sports, SSG-HITAM (May 2023 - May 2024)
+- Bridged academia and industry through IIIC; promoted teamwork via institute-level sports events.
+
+Head of R&D, Google Developer Student Club, HITAM (Aug 2022 - Aug 2023)
+- Led R&D initiatives and guided teams on project execution; drove innovation across multiple student-run technology projects.
+
+CERTIFICATIONS, AWARDS & HONORS
+HydPy NVIDIA Nemotron 3 Super Workshop — Top 3 Winner | KAVACH 2023 Cyber Hackathon — 2nd Place
+Student of the Department Award — CSE 2024 (HITAM) | Hugging Face Agents Course — Fundamentals of Agents (Sep 2025)
+NPTEL — Python (IIT Kharagpur, 83%) | NPTEL — Deep Learning (IIT Kanpur, 50%) | Parallel Programming — OpenMP & CUDA (VCET 2023)
+
+LANGUAGES
+English (Fluent) | Telugu (Fluent) | Hindi (Professional) | Marathi (Native)

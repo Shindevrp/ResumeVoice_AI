@@ -1,0 +1,43 @@
+[project]
+name = "resumevoice-ai"
+version = "0.1.0"
+description = "ResumeVoice AI real-time conversational assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "openai>=1.0.0",
+    "numpy>=1.26.0",
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    "aiortc>=1.15.0",
+]
+
+[project.optional-dependencies]
+stt = ["faster-whisper>=1.0.0", "webrtcvad>=2.0.10"]
+vad = ["torch>=2.0.0"]
+llm = ["openai>=1.0.0"]
+tts = ["piper-tts>=1.0.0"]
+memory = ["sentence-transformers>=2.2.0"]
+resume = ["pypdf>=3.0.0"]
+all = [
+    "faster-whisper>=1.0.0",
+    "webrtcvad>=2.0.10",
+    "torch>=2.0.0",
+    "piper-tts>=1.0.0",
+    "sentence-transformers>=2.2.0",
+    "pypdf>=3.0.0",
+]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.24.0"]
+
+[project.scripts]
+resumevoice-ai = "app.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "core*", "modules*", "providers*", "utils*", "resume*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

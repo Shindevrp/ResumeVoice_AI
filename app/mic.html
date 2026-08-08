@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:transparent;display:flex;align-items:center;justify-content:center;min-height:160px}
+.vc{text-align:center;width:100%}
+.vc-top{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
+.vc-dot{width:8px;height:8px;border-radius:50%;background:#6B7280;display:inline-block;transition:all .3s}
+.vc-dot.on{background:#3B82F6;box-shadow:0 0 10px rgba(59,130,246,.5);animation:vkp 1.2s infinite}
+.vc-dot.busy{background:#F59E0B;box-shadow:0 0 10px rgba(245,158,11,.4);animation:vkp .8s infinite}
+.vc-dot.talk{background:#10B981;box-shadow:0 0 10px rgba(16,185,129,.4);animation:vkp .6s infinite}
+@keyframes vkp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.35)}}
+.vc-lbl{font-size:.75rem;color:rgba(255,255,255,.5);letter-spacing:.2px}
+.vc-chat{background:rgba(255,255,255,.015);border:1px solid rgba(255,255,255,.03);border-radius:14px;padding:.5rem .75rem;min-height:70px;max-height:140px;overflow-y:auto;text-align:left;font-size:.82rem;line-height:1.5;margin-bottom:6px}
+.vc-chat::-webkit-scrollbar{width:3px}
+.vc-chat::-webkit-scrollbar-thumb{background:rgba(255,255,255,.06);border-radius:4px}
+.vc-u{color:rgba(255,255,255,.6)}
+.vc-u .l{font-size:.6rem;color:#3B82F6;font-weight:600}
+.vc-a{color:rgba(255,255,255,.5);margin-top:4px}
+.vc-a .l{font-size:.6rem;color:#10B981;font-weight:600}
+.vc-bl{color:#10B981;animation:vkb .7s step-end infinite}
+@keyframes vkb{50%{opacity:0}}
+.vc-empty{color:rgba(255,255,255,.12);font-size:.75rem;text-align:center;padding:1rem 0}
+.vc-btn{width:44px;height:44px;border-radius:50%;border:1px solid rgba(59,130,246,.15);background:rgba(255,255,255,.03);color:rgba(255,255,255,.4);font-size:1.1rem;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center}
+.vc-btn:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12)}
+.vc-btn.rec{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.25);color:#EF4444;box-shadow:0 0 14px rgba(239,68,68,.12)}
+</style>
+</head>
+<body>
+<div class="vc">
+  <div class="vc-top">
+    <span class="vc-dot" id="vcd"></span>
+    <span class="vc-lbl" id="vcl">Click mic to speak</span>
+  </div>
+  <div style="font-size:0.65rem;color:rgba(255,255,255,.25);min-height:1rem;margin-bottom:2px" id="vdbg"></div>
+  <div class="vc-chat" id="vcc"><div class="vc-empty">Speak or type below...</div></div>
+  <button class="vc-btn" id="vcb">🎤</button>
+</div>
+<script>
+(function(){
+  var b=document.getElementById('vcb'),d=document.getElementById('vcd'),l=document.getElementById('vcl'),c=document.getElementById('vcc'),db=document.getElementById('vdbg');
+  var ws=null,st=null,ac=null,pr=null,sc=null,act=false,reconn=null,retryDelay=1000,maxRetryDelay=30000,
+      audioQ=[],audioPlaying=false,gainNode=null,currentSrc=null,playToken=0;
+  function dbg(t){db.textContent=t;}
+  function sts(cl,t){d.className='vc-dot'+(cl?' '+cl:'');l.textContent=t;}
+  function lg(tp,tx){
+    if(tp==='c'){c.innerHTML='<div class="vc-empty">Speak or type below...</div>';return;}
+    var last=c.lastElementChild;
+    if(tp==='u'){c.innerHTML+='<div class="vc-u"><div class="l">YOU</div>'+tx+'</div>';}
+    else if(tp==='a'||tp==='a_'){
+      if(tp==='a_'&&last&&last.className==='vc-a'){
+        last.innerHTML='<div class="l">ResumeVoice AI</div>'+tx;
+      }else{
+        c.innerHTML+='<div class="vc-a"><div class="l">ResumeVoice AI</div>'+tx+'</div>';
+      }
+    }
+    c.scrollTop=c.scrollHeight;
+  }
+  function go(){
+    dbg('Requesting mic...');
+    navigator.mediaDevices.getUserMedia({audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}})
+    .then(function(s){
+      st=s;dbg('Mic granted');
+      try{
+        ac=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+        dbg('AudioContext 16kHz');
+      }catch(e){
+        try{ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e2){dbg('AudioCtx error');sts('','Audio error');return;}
+        dbg('AudioContext default rate');
+      }
+      sc=ac.createMediaStreamSource(s);
+      pr=ac.createScriptProcessor(4096,1,1);
+      sc.connect(pr);
+      var gag=ac.createGain();gag.gain.value=0;pr.connect(gag);gag.connect(ac.destination);
+      dbg('Connecting WS...');
+      var pp=location.protocol==='https:'?'wss:':'ws:';
+      ws=new WebSocket(pp+'//'+location.host+'/ws/audio');ws.binaryType='arraybuffer';
+      ws.onopen=function(){
+        act=true;retryDelay=1000;b.classList.add('rec');b.textContent='🔴';sts('on','Listening...');lg('c');dbg('WS open');
+        pr.onaudioprocess=function(e){
+          try{
+            var inp=e.inputBuffer.getChannelData(0),pcm=new Int16Array(inp.length);
+            for(var i=0;i<inp.length;i++){var s=Math.max(-1,Math.min(1,inp[i]));pcm[i]=s<0?s*0x8000:s*0x7FFF;}
+            if(ws&&ws.readyState===1)ws.send(pcm.buffer);
+          }catch(x){dbg('Audio err: '+x.message);}
+        };
+      };
+      ws.onmessage=function(e){
+        function duckAudio(){
+          playToken++;
+          if(currentSrc){try{currentSrc.stop();}catch(e){} currentSrc=null;}
+          if(gainNode){
+            try{gainNode.gain.linearRampToValueAtTime(0,ac.currentTime+0.05);}catch(e){}
+          }
+          audioQ=[];audioPlaying=false;
+        }
+        function setupGain(){
+          if(!gainNode&&ac){
+            try{gainNode=ac.createGain();gainNode.connect(ac.destination);}catch(e){gainNode=null;}
+          }
+          if(gainNode){try{gainNode.gain.value=1;}catch(e){}}
+        }
+        function playAudio(buf){
+          audioQ.push(buf);
+          if(!audioPlaying) processAudioQ();
+        }
+        function processAudioQ(){
+          if(audioQ.length===0){audioPlaying=false;return;}
+          audioPlaying=true;
+          var buf=audioQ.shift();
+          var tok=playToken;
+          if(!ac) return processAudioQ();
+          setupGain();
+          try{
+            ac.decodeAudioData(buf,function(audio){
+              if(tok!==playToken){processAudioQ();return;}
+              var src=ac.createBufferSource();
+              src.buffer=audio;
+              currentSrc=src;
+              if(gainNode) src.connect(gainNode);
+              else src.connect(ac.destination);
+              src.onended=function(){if(currentSrc===src)currentSrc=null;processAudioQ();};
+              src.start();
+            },function(){processAudioQ();});
+          }catch(x){processAudioQ();}
+        }
+        if(e.data instanceof ArrayBuffer){
+          playAudio(e.data);
+          return;
+        }
+        try{
+          var m=JSON.parse(e.data);
+          if(m.type==='speech_start'){sts('on','Listening...');}
+          else if(m.type==='speech_end'){sts('busy','Processing...');}
+          else if(m.type==='partial_transcript'){dbg('Heard: '+m.text.slice(0,60));}
+          else if(m.type==='transcript'){lg('u',m.text);dbg('Transcript: '+m.text);}
+          else if(m.type==='llm_token'){
+            if(!c.querySelector('.vc-a'))sts('talk','Speaking...');
+            lg('a_',m.token);
+          }
+        else if(m.type==='llm_done'){sts('','Speaking...');}
+        else if(m.type==='status'){sts('',m.text);}
+        else if(m.type==='tts_done'){sts('on','Listening...');}
+          else if(m.type==='interrupt'){duckAudio();sts('on','Listening...');dbg('Interruption detected');}
+        else if(m.type==='backchannel'){dbg('Backchannel: '+m.text);}
+        }catch(x){dbg('Msg err: '+x.message);}
+      };
+      ws.onerror=function(e){dbg('WS error');sts('','Connection error');};
+      function reconnect(){
+        if(!act)return;
+        var delay=retryDelay+Math.random()*retryDelay;
+        dbg('Reconnecting in '+(delay/1000).toFixed(1)+'s...');
+        reconn=setTimeout(function(){
+          if(!act)return;
+          retryDelay=Math.min(retryDelay*2,maxRetryDelay);
+          go();
+        },delay);
+      }
+      ws.onclose=function(e){dbg('WS closed (code='+(e.code||1005)+')');reconnect();};
+    })
+    .catch(function(e){dbg('Mic denied: '+e.message);sts('','Mic access denied');});
+  }
+  function stop(){
+    act=false;
+    if(reconn){clearTimeout(reconn);reconn=null;}
+    if(pr){try{pr.disconnect();}catch(e){}pr=null;}
+    if(sc){try{sc.disconnect();}catch(e){}sc=null;}
+    if(ac){try{ac.close();}catch(e){}ac=null;}
+    if(st){st.getTracks().forEach(function(t){t.stop();});st=null;}
+    if(ws){try{ws.close();}catch(e){}ws=null;}
+    audioQ=[];audioPlaying=false;
+    b.classList.remove('rec');b.textContent='🎤';
+    dbg('');
+    var t=l.textContent;
+    if(t==='Listening...'||t==='Processing...'||t==='Speaking...')sts('','Click mic to speak');
+  }
+  b.addEventListener('click',function(){if(act){stop();sts('','Stopped');}else{go();}});
+})();
+</script>
+</body>
+</html>

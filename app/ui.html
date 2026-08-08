@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ResumeVoice AI — Conversational AI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(ellipse at 50% 0%,#0B1A2E 0%,#020617 70%);color:rgba(255,255,255,.85);min-height:100vh;display:flex;justify-content:center;padding:1rem}
+.container{max-width:680px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card{background:rgba(15,25,45,.5);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.06);border-radius:24px;padding:1.25rem 1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.header{text-align:center;padding:.75rem}
+.header h1{font-size:1.1rem;font-weight:500;color:rgba(255,255,255,.3);letter-spacing:1px;text-transform:uppercase}
+.header .sub{font-size:.7rem;color:rgba(255,255,255,.15);margin-top:2px}
+.vc{text-align:center}
+.vc-top{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px}
+.vc-dot{width:10px;height:10px;border-radius:50%;background:#6B7280;display:inline-block;transition:all .3s}
+.vc-dot.on{background:#3B82F6;box-shadow:0 0 12px rgba(59,130,246,.5);animation:vkp 1.2s infinite}
+.vc-dot.busy{background:#F59E0B;box-shadow:0 0 12px rgba(245,158,11,.4);animation:vkp .8s infinite}
+.vc-dot.talk{background:#10B981;box-shadow:0 0 12px rgba(16,185,129,.4);animation:vkp .6s infinite}
+@keyframes vkp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+.vc-lbl{font-size:.75rem;color:rgba(255,255,255,.5);letter-spacing:.3px}
+.vc-err{font-size:.7rem;color:#EF4444;min-height:1.2rem;margin-bottom:2px}
+.vc-debug{font-size:.65rem;color:#FBBF24;min-height:1.1rem;margin-bottom:2px;word-break:break-all}
+.chat-box{background:rgba(255,255,255,.015);border:1px solid rgba(255,255,255,.03);border-radius:14px;padding:.75rem;min-height:120px;max-height:300px;overflow-y:auto;text-align:left;font-size:.85rem;line-height:1.6;margin-bottom:8px}
+.chat-box::-webkit-scrollbar{width:4px}
+.chat-box::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
+.msg{margin-bottom:6px;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg .lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;margin-right:6px;letter-spacing:.5px}
+.msg.user .lbl{color:#3B82F6}
+.msg.assistant .lbl{color:#10B981}
+.msg.system .lbl{color:#F59E0B}
+.msg .txt{color:rgba(255,255,255,.7)}
+.msg.user .txt{color:rgba(255,255,255,.85)}
+.empty-state{color:rgba(255,255,255,.12);font-size:.75rem;text-align:center;padding:1.5rem 0}
+.mic-btn{width:52px;height:52px;border-radius:50%;border:1px solid rgba(59,130,246,.15);background:rgba(255,255,255,.03);color:rgba(255,255,255,.4);font-size:1.3rem;cursor:pointer;transition:all .25s;display:inline-flex;align-items:center;justify-content:center;margin:0 auto}
+.mic-btn:hover{background:rgba(255,255,255,.07);border-color:rgba(59,130,246,.25);transform:scale(1.05)}
+.mic-btn.rec{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#EF4444;box-shadow:0 0 20px rgba(239,68,68,.15);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(239,68,68,.15)}50%{box-shadow:0 0 30px rgba(239,68,68,.25)}}
+.input-row{display:flex;gap:8px}
+.input-row input{flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:.65rem 1rem;color:rgba(255,255,255,.85);font-size:.9rem;outline:none;transition:border .2s}
+.input-row input:focus{border-color:rgba(59,130,246,.3)}
+.input-row input::placeholder{color:rgba(255,255,255,.2)}
+.input-row button{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.15);border-radius:14px;padding:.65rem 1.3rem;color:rgba(255,255,255,.7);font-size:.85rem;cursor:pointer;transition:all .2s}
+.input-row button:hover{background:rgba(59,130,246,.2);color:rgba(255,255,255,.9)}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tab{padding:.4rem 1rem;border-radius:10px;border:1px solid transparent;font-size:.75rem;cursor:pointer;color:rgba(255,255,255,.3);transition:all .2s;background:transparent}
+.tab:hover{color:rgba(255,255,255,.6)}
+.tab.active{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.15);color:rgba(255,255,255,.8)}
+.mode-indicator{font-size:.65rem;color:rgba(255,255,255,.2);text-align:center;margin-top:4px;letter-spacing:.3px}
+.controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}
+.controls button{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:.4rem .8rem;color:rgba(255,255,255,.4);font-size:.7rem;cursor:pointer;transition:all .2s}
+.controls button:hover{background:rgba(255,255,255,.07)}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card header">
+    <h1>ResumeVoice AI</h1>
+    <div class="sub">conversational voice AI</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-mode="voice" onclick="switchMode('voice')">Voice</button>
+      <button class="tab" data-mode="text" onclick="switchMode('text')">Text</button>
+      <button class="tab" data-mode="hybrid" onclick="switchMode('hybrid')">Hybrid</button>
+    </div>
+
+    <div id="voiceSection">
+      <div class="vc">
+        <div class="vc-top">
+          <span class="vc-dot" id="vcd"></span>
+          <span class="vc-lbl" id="vcl">Click mic to speak</span>
+        </div>
+        <div id="vdbg" class="vc-debug"></div>
+        <div id="verr" class="vc-err"></div>
+        <div class="chat-box" id="vcc"><div class="empty-state">Speak or type below...</div></div>
+        <div class="controls">
+          <button class="mic-btn" id="vcb">🎤</button>
+        </div>
+        <div class="mode-indicator">Voice Mode</div>
+      </div>
+    </div>
+
+    <div id="textSection" style="display:none">
+      <div class="chat-box" id="tcc" style="min-height:80px;max-height:250px"><div class="empty-state">Type a message...</div></div>
+      <div class="input-row">
+        <input type="text" id="tci" placeholder="Type a message..." autocomplete="off">
+        <button id="tcb">Send</button>
+      </div>
+      <div class="mode-indicator">Text Mode</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ---------- Voice ---------- */
+  var b=document.getElementById('vcb'),d=document.getElementById('vcd'),l=document.getElementById('vcl'),
+      c=document.getElementById('vcc'),db=document.getElementById('vdbg'),er=document.getElementById('verr');
+  var ws=null,st=null,ac=null,pr=null,sc=null,act=false,reconn=null,mode='voice',mr=null,
+      retryDelay=1000,maxRetryDelay=30000,audioQ=[],audioPlaying=false,gainNode=null;
+
+  function dbg(t){db.textContent=t;}
+  function err(t){er.textContent=t;setTimeout(function(){if(er.textContent===t)er.textContent='';},5000);}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function sts(cl,t){d.className='vc-dot'+(cl?' '+cl:'');l.textContent=t;}
+  function addMsg(role,text,append){
+    var box=mode==='hybrid'?c:c;
+    var empty=box.querySelector('.empty-state');
+    if(empty)empty.remove();
+    if(!append||!box.lastElementChild||box.lastElementChild.className.indexOf('msg '+role)===-1){
+      var el=document.createElement('div');
+      el.className='msg '+role;
+      el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'ResumeVoice AI':'System')+'</span><span class="txt">'+esc(text)+'</span>';
+      box.appendChild(el);
+    }else{
+      var last=box.lastElementChild;
+      last.querySelector('.txt').textContent+=esc(text);
+    }
+    box.scrollTop=box.scrollHeight;
+  }
+
+  var _pcmCnt=0;
+  function sendPcm(inp){
+    try{
+      var pcm=new Int16Array(inp.length);
+      var peak=0;
+      for(var i=0;i<inp.length;i++){var s=Math.max(-1,Math.min(1,inp[i]));pcm[i]=s<0?s*0x8000:s*0x7FFF;if(Math.abs(s)>peak)peak=Math.abs(s);}
+      if(ws&&ws.readyState===1){ws.send(pcm.buffer);if(++_pcmCnt%10===0)dbg('Audio peak='+peak.toFixed(3));}
+    }catch(x){}
+  }
+
+  function startVoice(){
+    dbg('Requesting mic...');
+    if(!ac){
+      var _ac16000=true;
+      try{ac=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});}catch(e){_ac16000=false;
+        try{ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e2){err('AudioContext not supported');return;}
+      }
+      dbg(_ac16000?'Audio 16kHz':'Audio fallback '+ac.sampleRate+'Hz');
+    }
+    navigator.mediaDevices.getUserMedia({audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}})
+    .then(function(s){
+      st=s;dbg('Mic ready');
+      sc=ac.createMediaStreamSource(s);
+      pr=ac.createScriptProcessor(4096,1,1);
+      sc.connect(pr);
+      var gag=ac.createGain();gag.gain.value=0;pr.connect(gag);gag.connect(ac.destination);
+      pr.onaudioprocess=function(e){sendPcm(e.inputBuffer.getChannelData(0));};
+      dbg('Connecting...');
+      var proto=location.protocol==='https:'?'wss:':'ws:';
+      var host=location.host;
+      ws=new WebSocket(proto+'//'+host+'/ws/audio');ws.binaryType='arraybuffer';
+      ws.onopen=function(){
+        act=true;retryDelay=1000;b.classList.add('rec');b.textContent='🔴';sts('on','Listening...');
+        c.innerHTML='<div class="empty-state">Speak or type below...</div>';
+      };
+      var currentSrc=null,playToken=0;
+      function duckAudio(){
+        playToken++;
+        if(currentSrc){try{currentSrc.stop();}catch(e){} currentSrc=null;}
+        if(gainNode){
+          try{
+            gainNode.gain.linearRampToValueAtTime(0, ac.currentTime+0.05);
+          }catch(e){}
+        }
+        audioQ=[];audioPlaying=false;
+      }
+      function setupGain(){
+        if(!gainNode&&ac){
+          try{
+            gainNode=ac.createGain();
+            gainNode.connect(ac.destination);
+          }catch(e){gainNode=null;}
+        }
+        if(gainNode){try{gainNode.gain.value=1;}catch(e){}}
+      }
+      function playAudio(buf){
+        audioQ.push(buf);
+        if(!audioPlaying) processAudioQ();
+      }
+      function processAudioQ(){
+        if(audioQ.length===0){audioPlaying=false;return;}
+        audioPlaying=true;
+        var buf=audioQ.shift();
+        var tok=playToken;
+        if(!ac) return processAudioQ();
+        setupGain();
+        try{
+          ac.decodeAudioData(buf,function(audio){
+            if(tok!==playToken){processAudioQ();return;}
+            var src=ac.createBufferSource();
+            src.buffer=audio;
+            currentSrc=src;
+            if(gainNode) src.connect(gainNode);
+            else src.connect(ac.destination);
+            src.onended=function(){if(currentSrc===src)currentSrc=null;processAudioQ();};
+            src.start();
+          },function(){processAudioQ();});
+        }catch(x){processAudioQ();}
+      }
+      ws.onmessage=function(e){
+        if(e.data instanceof ArrayBuffer){
+          playAudio(e.data);
+          return;
+        }
+        try{
+          var m=JSON.parse(e.data);
+          if(m.type==='speech_start'){sts('on','Listening...');dbg('Speaking detected');}
+          else if(m.type==='speech_end'){sts('busy','Processing...');dbg('Processing speech');}
+          else if(m.type==='partial_transcript'){dbg('Heard: '+m.text.slice(0,60));}
+          else if(m.type==='transcript'){addMsg('user',m.text);dbg('You: '+m.text.slice(0,40));}
+          else if(m.type==='llm_token'){
+            if(!c.querySelector('.msg.assistant')){sts('talk','Speaking...');dbg('ResumeVoice AI responding...');}
+            addMsg('assistant',m.token,true);
+          }
+          else if(m.type==='llm_done'){sts('','Done');dbg('Response complete');}
+          else if(m.type==='tts_done'){if(act)sts('on','Listening...');dbg('TTS done');}
+          else if(m.type==='backchannel'){dbg('ResumeVoice AI: '+m.text);}
+          else if(m.type==='interrupt'){duckAudio();sts('on','Listening...');dbg('Interruption detected');}
+          else if(m.type==='status'){dbg(m.text);}
+          else if(m.type==='error'){err(m.text);dbg('Error: '+m.text);}
+        }catch(x){dbg('Parse err');}
+      };
+      ws.onerror=function(){err('Connection failed');sts('','Connection error');};
+      function reconnect(){
+        if(!act)return;
+        var delay=retryDelay+Math.random()*retryDelay;
+        dbg('Reconnecting in '+(delay/1000).toFixed(1)+'s...');
+        reconn=setTimeout(function(){
+          if(!act)return;
+          retryDelay=Math.min(retryDelay*2,maxRetryDelay);
+          startVoice();
+        },delay);
+      }
+      ws.onclose=function(e){
+        dbg('Disconnected (code='+e.code+')');
+        reconnect();
+      };
+    })
+    .catch(function(e){
+      err('Mic access denied: '+e.message);
+      sts('','Mic unavailable');
+    });
+  }
+
+  function stopVoice(){
+    act=false;
+    if(reconn){clearTimeout(reconn);reconn=null;}
+    if(pr){try{pr.disconnect();}catch(e){}pr=null;}
+    if(sc){try{sc.disconnect();}catch(e){}sc=null;}
+    if(st){try{st.getTracks().forEach(function(t){t.stop();});}catch(e){}st=null;}
+    if(ws){try{ws.close();}catch(e){}ws=null;}
+    audioQ=[];audioPlaying=false;
+    b.classList.remove('rec');b.textContent='🎤';
+    dbg('');var t=l.textContent;
+    if(t==='Listening...'||t==='Processing...'||t==='Done')sts('','Click mic to speak');
+  }
+
+  b.addEventListener('click',function(){
+    if(act){stopVoice();sts('','Stopped');dbg('Stopped');return;}
+    if(!ac){
+      try{ac=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});}catch(e){
+        try{ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e2){err('Audio not supported');return;}
+      }
+    }
+    startVoice();
+  });
+
+  /* ---------- Text Chat ---------- */
+  var tc=document.getElementById('tcc'),ti=document.getElementById('tci'),tb=document.getElementById('tcb');
+  function tAdd(role,text){
+    var empty=tc.querySelector('.empty-state');
+    if(empty)empty.remove();
+    var el=document.createElement('div');
+    el.className='msg '+role;
+    el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'ResumeVoice AI':'System')+'</span><span class="txt">'+esc(text)+'</span>';
+    tc.appendChild(el);tc.scrollTop=tc.scrollHeight;
+  }
+  function sendText(){
+    var msg=ti.value.trim();if(!msg)return;
+    ti.value='';tAdd('user',msg);
+    var last=document.createElement('div');last.className='msg assistant';
+    last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt">...</span>';
+    tc.appendChild(last);tc.scrollTop=tc.scrollHeight;
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',(location.protocol==='https:'?'https:':'http:')+'//'+location.host+'/chat/stream',true);
+    xhr.setRequestHeader('Content-Type','application/json');xhr.responseType='text';
+    var full='';
+    xhr.onprogress=function(){
+      var lines=xhr.responseText.split('\n');
+      for(var i=0;i<lines.length;i++){
+        var line=lines[i].trim();
+        if(!line.startsWith('data: '))continue;
+        try{
+          var p=JSON.parse(line.slice(6));
+          if(p.type==='token'){full+=p.token;last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt">'+esc(full)+'</span>';}
+        }catch(e){}
+      }
+    };
+    xhr.onload=function(){if(last)last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt">'+esc(full)+'</span>';};
+    xhr.onerror=function(){last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt" style="color:#EF4444">Connection error</span>';};
+    xhr.send(JSON.stringify({message:msg}));
+  }
+  ti.addEventListener('keydown',function(e){if(e.key==='Enter')sendText();});
+  tb.addEventListener('click',sendText);
+
+  /* ---------- Mode Switching ---------- */
+  window.switchMode=function(m){
+    mode=m;
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+    document.querySelector('.tab[data-mode="'+m+'"]').classList.add('active');
+    document.getElementById('voiceSection').style.display=(m==='voice'||m==='hybrid')?'':'none';
+    document.getElementById('textSection').style.display=(m==='text'||m==='hybrid')?'':'none';
+    if(m==='hybrid')c=tc;
+    else c=document.getElementById('vcc');
+  };
+})();
+</script>
+</body>
+</html>
