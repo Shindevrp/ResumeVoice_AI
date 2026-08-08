@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import replace
 from pathlib import Path
-from typing import AsyncGenerator
 
 import piper
-import numpy as np
 
-from providers.tts.base import TTSProvider
 from modules.tts.prosody import (
     ProsodyProfile,
     comma_fractions,
@@ -17,6 +15,7 @@ from modules.tts.prosody import (
     splice_audio,
     split_emphasis,
 )
+from providers.tts.base import TTSProvider
 
 
 class PiperTTS(TTSProvider):
@@ -30,9 +29,7 @@ class PiperTTS(TTSProvider):
         noise_w: float = 0.5,
     ) -> None:
         self.model_path = Path(model_path)
-        self.model_config_path = (
-            Path(model_config_path) if model_config_path else None
-        )
+        self.model_config_path = Path(model_config_path) if model_config_path else None
         self.sentence_silence = sentence_silence
         self._syn_config = piper.SynthesisConfig(
             length_scale=length_scale,
@@ -152,14 +149,10 @@ class PiperTTS(TTSProvider):
         if not full:
             return []
         pad = self._silence_pad(comma_pad_seconds)
-        return splice_audio(
-            full, comma_fractions(sentence), self.sample_rate, pad
-        )
+        return splice_audio(full, comma_fractions(sentence), self.sample_rate, pad)
 
     def _pause_after(self, terminator: str, prosody: ProsodyProfile | None) -> bytes:
-        return self._silence_pad(
-            pause_for(terminator, self._sentence_silence(prosody))
-        )
+        return self._silence_pad(pause_for(terminator, self._sentence_silence(prosody)))
 
     async def synthesize_stream(
         self,

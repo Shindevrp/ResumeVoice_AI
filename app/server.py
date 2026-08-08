@@ -1,27 +1,27 @@
+# ruff: noqa: E402
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 
-from app.routes.health import router as health_router
-from app.routes.ws import router as ws_router
 from app.routes.chat import router as chat_router
+from app.routes.health import router as health_router
 from app.routes.metrics import router as metrics_router
-from app.routes.webrtc import router as webrtc_router
 from app.routes.sessions import router as sessions_router
-from core.pipeline import StreamingPipeline
+from app.routes.webrtc import router as webrtc_router
+from app.routes.ws import router as ws_router
 from core.config import CoreConfig
+from core.pipeline import StreamingPipeline
 from utils.logger import get_logger
 
 logger = get_logger("server")
@@ -31,39 +31,40 @@ pipeline: StreamingPipeline | None = None
 
 
 def _build_providers():
-    from providers.stt.faster_whisper_stt import FasterWhisperSTT
-    from providers.llm.vllm_llm import VLLMProvider
-    from providers.tts.piper_tts import PiperTTS
-    from modules.vad.silero_vad import SileroVAD
-    from modules.turn.detector import TurnDetector
-    from modules.turn.interrupt import InterruptHandler
-    from modules.turn.timing import TurnTiming
-    from modules.turn.backchannel import TurnBackchannel
     from modules.backchannel.generator import BackchannelGenerator
     from modules.backchannel.timing import BackchannelTiming
     from modules.emotion.classifier import EmotionClassifier
+    from modules.turn.backchannel import TurnBackchannel
+    from modules.turn.detector import TurnDetector
+    from modules.turn.interrupt import InterruptHandler
+    from modules.turn.timing import TurnTiming
+    from modules.vad.silero_vad import SileroVAD
+    from providers.llm.vllm_llm import VLLMProvider
+    from providers.stt.faster_whisper_stt import FasterWhisperSTT
+    from providers.tts.piper_tts import PiperTTS
 
     stt = FasterWhisperSTT(
-        model_size=os.getenv("RESUMEVOICE_STT_MODEL", "tiny"),
-        device=os.getenv("RESUMEVOICE_STT_DEVICE", "cuda"),
-        compute_type=os.getenv("RESUMEVOICE_STT_COMPUTE", "float16"),
+        model_size=config.stt_model,
+        device=config.stt_device,
+        compute_type=config.stt_compute,
     )
 
     llm = VLLMProvider(
-        base_url=os.getenv("RESUMEVOICE_LLM_URL", "http://localhost:8000/v1"),
-        model=os.getenv("RESUMEVOICE_LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct-AWQ"),
+        base_url=config.llm_url,
+        model=config.llm_model,
+        api_key=config.llm_api_key,
+        temperature=config.llm_temperature,
+        max_tokens=config.llm_max_tokens,
+        top_p=config.llm_top_p,
     )
 
     tts = PiperTTS(
-        model_path=os.getenv(
-            "RESUMEVOICE_TTS_MODEL",
-            str(Path(__file__).parent.parent / "models" / "en_US-lessac-medium.onnx"),
-        ),
+        model_path=config.tts_model,
     )
 
     vad = SileroVAD(
-        threshold=float(os.getenv("RESUMEVOICE_VAD_THRESHOLD", "0.5")),
-        device=os.getenv("RESUMEVOICE_VAD_DEVICE", "cuda"),
+        threshold=config.vad_threshold,
+        device=config.vad_device,
     )
 
     turn_detector = TurnDetector()
@@ -81,8 +82,19 @@ def _build_providers():
         device=config.emotion_device,
     )
 
-    return (stt, llm, tts, vad, turn_detector, interrupt_handler, turn_timing,
-            turn_backchannel, backchannel_gen, backchannel_timing, emotion)
+    return (
+        stt,
+        llm,
+        tts,
+        vad,
+        turn_detector,
+        interrupt_handler,
+        turn_timing,
+        turn_backchannel,
+        backchannel_gen,
+        backchannel_timing,
+        emotion,
+    )
 
 
 @asynccontextmanager
@@ -90,9 +102,7 @@ async def lifespan(app: FastAPI):
     global pipeline
 
     try:
-        (stt, llm, tts, vad, td, ih, tt, tbc, bcg, bct, emotion) = (
-            _build_providers()
-        )
+        (stt, llm, tts, vad, td, ih, tt, tbc, bcg, bct, emotion) = _build_providers()
         from modules.dialogue.resume import load_resume_data
 
         resume = None
@@ -104,10 +114,16 @@ async def lifespan(app: FastAPI):
                     "set RESUMEVOICE_RESUME_PATH to a .txt or .pdf file"
                 )
         pipeline = StreamingPipeline(
-            stt=stt, llm=llm, tts=tts, vad=vad,
-            turn_detector=td, interrupt_handler=ih,
-            turn_timing=tt, turn_backchannel=tbc,
-            backchannel_generator=bcg, backchannel_timing=bct,
+            stt=stt,
+            llm=llm,
+            tts=tts,
+            vad=vad,
+            turn_detector=td,
+            interrupt_handler=ih,
+            turn_timing=tt,
+            turn_backchannel=tbc,
+            backchannel_generator=bcg,
+            backchannel_timing=bct,
             emotion_classifier=emotion,
             resume=resume,
         )
@@ -127,9 +143,7 @@ async def lifespan(app: FastAPI):
         try:
             await asyncio.to_thread(emotion.load)
             if emotion.loaded:
-                logger.info(
-                    f"emotion classifier warmed up ({emotion.model_name})"
-                )
+                logger.info(f"emotion classifier warmed up ({emotion.model_name})")
         except Exception as e:
             logger.warning(f"emotion warmup failed (non-critical): {e}")
         # Warm up the shared retrieval encoder so it is never loaded on the
@@ -157,21 +171,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ResumeVoice AI",
-    version="0.2.0",
+    version="0.1.0",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"],
 )
 
 app.include_router(health_router)
@@ -195,7 +208,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 def root() -> dict[str, str]:
     return {
         "service": "ResumeVoice AI",
-        "version": "0.2.0",
+        "version": "0.1.0",
         "status": "running" if app.state.pipeline else "degraded",
     }
 

@@ -21,7 +21,8 @@ class DialogueState(Enum):
             DialogueState.LISTENING: {DialogueState.PROCESSING, DialogueState.IDLE},
             DialogueState.PROCESSING: {DialogueState.INTERRUPTIBLE, DialogueState.IDLE},
             DialogueState.INTERRUPTIBLE: {
-                DialogueState.IDLE, DialogueState.LISTENING,
+                DialogueState.IDLE,
+                DialogueState.LISTENING,
             },
         }
         return target in allowed.get(self, set())
@@ -98,8 +99,6 @@ class SessionState:
         if old == new_state:
             return
         if not old.can_transition_to(new_state):
-            logger.warning(
-                f"invalid state transition {old.name} -> {new_state.name}"
-            )
+            logger.warning(f"invalid state transition {old.name} -> {new_state.name}")
             return
         self.state = new_state

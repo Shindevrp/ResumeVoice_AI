@@ -107,9 +107,7 @@ class TestPipelineFacts:
             fm.advance_turn()
             fm.add_all(fm.extract("My name is Alex"))
             ctx = ConversationContext()
-            msgs = await p._build_messages(
-                "hello", ctx, None, None, facts=fm
-            )
+            msgs = await p._build_messages("hello", ctx, None, None, facts=fm)
             system = msgs[0]["content"]
             assert "Facts about the user:" in system
             assert "- name: Alex" in system
@@ -122,9 +120,7 @@ class TestPipelineFacts:
                 async def transcribe(self, audio_blob: bytes) -> str:
                     return "My name is Alex"
 
-            p = StreamingPipeline(
-                SttAlex(), FakeLLMText(), FakeTTSStream(), FakeVAD()
-            )
+            p = StreamingPipeline(SttAlex(), FakeLLMText(), FakeTTSStream(), FakeVAD())
             fm = FactMemory()
             p._facts["sess"] = fm
             await p._process_speech_segment(
@@ -141,7 +137,9 @@ class TestLLMFactExtraction:
         async def run() -> None:
             p = StreamingPipeline(
                 FakeSTTText(),
-                FakeLLMWithGenerate('[{"key": "hobby", "value": "hiking", "confidence": 0.9}]'),
+                FakeLLMWithGenerate(
+                    '[{"key": "hobby", "value": "hiking", "confidence": 0.9}]'
+                ),
                 FakeTTSStream(),
                 FakeVAD(),
             )

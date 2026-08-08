@@ -3,15 +3,71 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 _STOPWORDS = {
-    "about", "after", "again", "against", "also", "because", "been",
-    "before", "being", "between", "could", "didnt", "doesnt", "doing",
-    "during", "even", "every", "from", "going", "have", "having", "here",
-    "into", "just", "know", "like", "more", "most", "much", "need",
-    "next", "now", "only", "other", "over", "really", "right", "same",
-    "should", "something", "still", "such", "than", "that", "their",
-    "them", "then", "there", "these", "they", "this", "those", "through",
-    "very", "want", "well", "were", "what", "when", "where", "which",
-    "while", "with", "would", "your",
+    "about",
+    "after",
+    "again",
+    "against",
+    "also",
+    "because",
+    "been",
+    "before",
+    "being",
+    "between",
+    "could",
+    "didnt",
+    "doesnt",
+    "doing",
+    "during",
+    "even",
+    "every",
+    "from",
+    "going",
+    "have",
+    "having",
+    "here",
+    "into",
+    "just",
+    "know",
+    "like",
+    "more",
+    "most",
+    "much",
+    "need",
+    "next",
+    "now",
+    "only",
+    "other",
+    "over",
+    "really",
+    "right",
+    "same",
+    "should",
+    "something",
+    "still",
+    "such",
+    "than",
+    "that",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "very",
+    "want",
+    "well",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "with",
+    "would",
+    "your",
 }
 
 
@@ -85,9 +141,7 @@ class TopicTracker:
             if not clean.isalpha():
                 continue
             counts[clean] = counts.get(clean, 0) + 1
-        ranked = sorted(
-            counts.items(), key=lambda kv: (-kv[1], -len(kv[0]))
-        )
+        ranked = sorted(counts.items(), key=lambda kv: (-kv[1], -len(kv[0])))
         return [w for w, _ in ranked[:3]]
 
     def update(self, text: str, turn_index: int) -> TopicChange:

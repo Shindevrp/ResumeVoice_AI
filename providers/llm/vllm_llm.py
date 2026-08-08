@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from openai import AsyncOpenAI
 
@@ -19,8 +19,15 @@ class VLLMProvider(LLMProvider):
         repetition_penalty: float | None = 1.15,
         presence_penalty: float = 0.0,
         frequency_penalty: float = 0.0,
+        timeout: float = 60.0,
+        max_retries: int = 1,
     ) -> None:
-        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        self.client = AsyncOpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            timeout=timeout,
+            max_retries=max_retries,
+        )
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens

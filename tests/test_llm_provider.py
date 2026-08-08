@@ -68,9 +68,7 @@ class TestVLLMProvider:
         p.client = FakeClient()
 
         async def collect() -> None:
-            async for t in p.generate_stream(
-                [{"role": "user", "content": "hi"}]
-            ):
+            async for t in p.generate_stream([{"role": "user", "content": "hi"}]):
                 tokens.append(t)
 
         tokens: list[str] = []

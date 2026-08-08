@@ -88,8 +88,6 @@ class TestEmotionPipelineIntegration:
             p._emotion = SlowEmotion()
             ctx = ConversationContext()
             await p._process_speech_segment(b"\x00" * 1600, "sess", ctx)
-            assert ctx.user_sentiment == classify_sentiment(
-                "hello world"
-            )
+            assert ctx.user_sentiment == classify_sentiment("hello world")
 
         asyncio.run(run())

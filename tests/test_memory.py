@@ -4,11 +4,11 @@ import asyncio
 
 import pytest
 
+from core.pipeline import ConversationContext, StreamingPipeline
+from modules.memory.retrieval import RetrievalModule
 from modules.memory.session import SessionMemory
 from modules.memory.vector_db import VectorDB
-from modules.memory.retrieval import RetrievalModule
-from core.pipeline import ConversationContext, StreamingPipeline
-from tests.test_streaming import FakeSTT, FakeLLM, FakeTTS, FakeVAD
+from tests.test_streaming import FakeLLM, FakeSTT, FakeTTS, FakeVAD
 
 
 class TestSessionMemory:
@@ -47,6 +47,7 @@ class TestVectorDB:
         class FakeEncoder:
             def encode(self, text, **kw):
                 import numpy as np
+
                 if "weather" in text.lower():
                     return np.array([1, 0, 0, 0])
                 return np.array([0, 1, 0, 0])
@@ -66,6 +67,7 @@ class TestVectorDB:
         class FakeEncoder:
             def encode(self, text, **kw):
                 import numpy as np
+
                 if "weather" in text.lower():
                     return np.array([1, 0, 0, 0])
                 return np.array([0, 1, 0, 0])
@@ -92,6 +94,7 @@ class TestVectorDB:
         class FakeEncoder:
             def encode(self, text, **kw):
                 import numpy as np
+
                 if "weather" in text.lower():
                     return np.array([1, 0, 0, 0])
                 return np.array([0, 1, 0, 0])
@@ -104,7 +107,9 @@ class TestVectorDB:
         db.add("I like pizza", metadata={"topic": "food"})
         db.add("cloudy skies tonight", metadata={"topic": "weather"})
 
-        docs = [d for d, _ in db.search_scored("weather today", top_k=3, topic="weather")]
+        docs = [
+            d for d, _ in db.search_scored("weather today", top_k=3, topic="weather")
+        ]
         assert docs == [
             "the weather is nice",
             "cloudy skies tonight",
@@ -116,6 +121,7 @@ def _fake_encoder_db(db: VectorDB) -> None:
     class FakeEncoder:
         def encode(self, text, **kw):
             import numpy as np
+
             if "weather" in text.lower():
                 return np.array([1, 0, 0, 0])
             return np.array([0, 1, 0, 0])
@@ -141,6 +147,7 @@ class TestRetrievalModule:
         class FakeEncoder:
             def encode(self, text, **kw):
                 import numpy as np
+
                 if "weather" in text.lower():
                     return np.array([1, 0, 0, 0])
                 return np.array([0, 1, 0, 0])
@@ -175,7 +182,9 @@ class TestRetrievalModule:
         rm.vector_db.add("the weather is nice", metadata={"topic": "weather"})
         sm = SessionMemory()
 
-        hits = rm.retrieve_context_with_topics("weather today", sm, top_k=1, topic="weather")
+        hits = rm.retrieve_context_with_topics(
+            "weather today", sm, top_k=1, topic="weather"
+        )
         assert hits == [("the weather is nice", "weather")]
 
     def test_add_to_long_term_tags_topic(self) -> None:

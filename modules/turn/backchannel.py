@@ -35,6 +35,4 @@ class TurnBackchannel:
         last_backchannel_time: float,
         current_time: float,
     ) -> str | None:
-        return self.generator.generate(
-            transcript, last_backchannel_time, current_time
-        )
+        return self.generator.generate(transcript, last_backchannel_time, current_time)

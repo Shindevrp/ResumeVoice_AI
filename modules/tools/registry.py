@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import re
-from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -43,14 +44,16 @@ class ToolRegistry:
     def find_calls(self, text: str) -> list[dict[str, str]]:
         calls = []
         for match in re.finditer(TOOL_CALL_RE, text):
-            calls.append({
-                "name": match.group(1),
-                "args": [
-                    a.strip().strip('"').strip("'")
-                    for a in match.group(2).split(",")
-                    if a.strip()
-                ],
-            })
+            calls.append(
+                {
+                    "name": match.group(1),
+                    "args": [
+                        a.strip().strip('"').strip("'")
+                        for a in match.group(2).split(",")
+                        if a.strip()
+                    ],
+                }
+            )
         return calls
 
     def strip_calls(self, text: str) -> str:

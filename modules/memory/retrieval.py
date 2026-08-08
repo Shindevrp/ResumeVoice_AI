@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from modules.memory.vector_db import VectorDB
 from modules.memory.session import SessionMemory
+from modules.memory.vector_db import VectorDB
 
 
 class RetrievalModule:
@@ -50,9 +50,7 @@ class RetrievalModule:
             topic=topic,
             topic_boost=self.topic_boost,
         )
-        recent = {
-            e.content.strip().lower() for e in session_memory.get_history(4)
-        }
+        recent = {e.content.strip().lower() for e in session_memory.get_history(4)}
         hits = [
             (doc, meta.get("topic"))
             for doc, score, meta in results

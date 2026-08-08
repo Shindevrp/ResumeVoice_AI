@@ -4,7 +4,6 @@ import asyncio
 
 from core.pipeline import ConversationContext, StreamingPipeline
 from tests.test_streaming import (
-    FakeSTTText,
     FakeTTSStream,
     FakeVAD,
     _is_label_call,

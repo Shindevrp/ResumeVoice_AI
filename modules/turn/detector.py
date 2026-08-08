@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from modules.prosody.analyzer import ProsodyAnalyzer
 from modules.turn.classifier import TurnClassifier
 from modules.turn.features import TurnFeatures
-from modules.prosody.analyzer import ProsodyAnalyzer
 
 
 class TurnDetector:

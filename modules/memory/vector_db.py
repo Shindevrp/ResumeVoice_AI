@@ -67,10 +67,7 @@ class VectorDB:
                 if doc_topic and doc_topic == current:
                     scores[i] += topic_boost
         top_indices = np.argsort(scores)[-top_k:][::-1]
-        return [
-            (self.documents[i], scores[i], self.metadata[i])
-            for i in top_indices
-        ]
+        return [(self.documents[i], scores[i], self.metadata[i]) for i in top_indices]
 
     def search_scored(
         self,

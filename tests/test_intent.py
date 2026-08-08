@@ -39,7 +39,10 @@ class TestIntentClassifier:
         assert self.c.classify("and also, the flight was late") == "continuation"
 
     def test_continuation_reference_after_statement(self) -> None:
-        assert self.c.classify("I really like that", prev_intent="statement") == "continuation"
+        assert (
+            self.c.classify("I really like that", prev_intent="statement")
+            == "continuation"
+        )
 
     def test_plain_statement(self) -> None:
         assert self.c.classify("I really enjoy hiking in the mountains") == "statement"

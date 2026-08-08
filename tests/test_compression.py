@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 
 from core.pipeline import ConversationContext
-from modules.memory.session import SessionMemory
 from modules.memory.compression import ContextCompressor
-from tests.test_streaming import _make_pipeline, FakeLLMText
+from modules.memory.session import SessionMemory
+from tests.test_streaming import FakeLLMText, _make_pipeline
 
 
 class TestFoldSummary:

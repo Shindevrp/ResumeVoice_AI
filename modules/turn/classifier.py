@@ -1,19 +1,53 @@
 from __future__ import annotations
 
-
 END_TURN_FILLER_WORDS = {
-    "um", "uh", "like", "well", "so", "actually", "basically",
-    "you know", "i mean", "sort of", "kind of",
+    "um",
+    "uh",
+    "like",
+    "well",
+    "so",
+    "actually",
+    "basically",
+    "you know",
+    "i mean",
+    "sort of",
+    "kind of",
 }
 
 TRAILING_CONJUNCTIONS = {
-    "and", "but", "or", "because", "so", "then", "if",
+    "and",
+    "but",
+    "or",
+    "because",
+    "so",
+    "then",
+    "if",
 }
 
 QUESTION_WORDS = {
-    "what", "why", "how", "when", "where", "who", "which",
-    "do", "does", "did", "is", "are", "was", "were", "can", "could",
-    "would", "should", "will", "shall", "have", "has", "had",
+    "what",
+    "why",
+    "how",
+    "when",
+    "where",
+    "who",
+    "which",
+    "do",
+    "does",
+    "did",
+    "is",
+    "are",
+    "was",
+    "were",
+    "can",
+    "could",
+    "would",
+    "should",
+    "will",
+    "shall",
+    "have",
+    "has",
+    "had",
 }
 
 

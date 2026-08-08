@@ -58,14 +58,11 @@ class ResumeData:
         return ""
 
     def to_prompt_block(self) -> str:
-        return (
-            PERSONA_INSTRUCTION
-            + PROFILE_PROMPT.format(
-                name=self.name,
-                headline=self.headline,
-                contact=self.contact,
-                summary=self.summary or "N/A",
-            )
+        return PERSONA_INSTRUCTION + PROFILE_PROMPT.format(
+            name=self.name,
+            headline=self.headline,
+            contact=self.contact,
+            summary=self.summary or "N/A",
         )
 
     def retrieval_sections(self) -> list[str]:
@@ -92,14 +89,12 @@ def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
     for idx, (title, start) in enumerate(ordered):
         end = ordered[idx + 1][1] if idx + 1 < len(ordered) else len(lines)
         body = "\n".join(
-            line for line in lines[start + 1:end] if line.strip()
+            line for line in lines[start + 1 : end] if line.strip()
         ).strip()
         sections.append((title, body))
 
     header_lines_end = ordered[0][1] if ordered else len(lines)
-    header_block = "\n".join(
-        line for line in lines[:header_lines_end] if line.strip()
-    )
+    header_block = "\n".join(line for line in lines[:header_lines_end] if line.strip())
     return header_block, sections
 
 

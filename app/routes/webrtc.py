@@ -3,28 +3,27 @@ from __future__ import annotations
 import asyncio
 import json
 import struct
-import time
 import uuid
 
+from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc.mediastreams import AudioFrame, MediaStreamTrack
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
-from aiortc.mediastreams import AudioFrame, MediaStreamTrack
-
-from core.pipeline import StreamingPipeline, PipelineEvent
-from core.state import SessionState, DialogueState
 from app.session_registry import register as register_session
 from app.session_registry import unregister as unregister_session
-from modules.memory.session import SessionMemory
+from core.pipeline import PipelineEvent, StreamingPipeline
+from core.state import DialogueState, SessionState
 from modules.memory.retrieval import RetrievalModule
+from modules.memory.session import SessionMemory
 from utils.logger import get_logger
 
 logger = get_logger("webrtc")
 
 router = APIRouter(prefix="/ws", tags=["webrtc"])
 
-SESSION_TIMEOUT = 300.0
-_active_sessions: dict[str, float] = {}
+MAX_FRAME_BYTES = 65_536
+MAX_SESSION_BYTES = 200 * 1024 * 1024
+_session_bytes: dict[str, int] = {}
 
 
 class TTSTrack(MediaStreamTrack):
@@ -56,7 +55,7 @@ class TTSTrack(MediaStreamTrack):
     async def recv(self) -> AudioFrame:
         try:
             return await asyncio.wait_for(self._queue.get(), timeout=0.3)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             silence = AudioFrame(
                 data=b"\x00" * 960 * 2,
                 sample_rate=48000,
@@ -76,7 +75,6 @@ def _strip_wav_header(data: bytes) -> bytes:
 def _extract_wav_info(data: bytes) -> tuple[int, int]:
     if len(data) < 44 or data[:4] != b"RIFF":
         return 16000, 16
-    num_channels = struct.unpack_from("<H", data, 22)[0]
     sample_rate = struct.unpack_from("<I", data, 24)[0]
     bits_per_sample = struct.unpack_from("<H", data, 34)[0]
     return sample_rate, bits_per_sample
@@ -86,7 +84,6 @@ def _extract_wav_info(data: bytes) -> tuple[int, int]:
 async def webrtc_signal(websocket: WebSocket):
     await websocket.accept()
     session_id = str(uuid.uuid4())[:8]
-    _active_sessions[session_id] = time.time()
     logger.info(f"webrtc session {session_id} connected")
 
     pipeline: StreamingPipeline | None = websocket.app.state.pipeline
@@ -122,34 +119,41 @@ async def webrtc_signal(websocket: WebSocket):
                     await websocket.send_json({"type": "speech_end"})
 
                 elif msg.event == PipelineEvent.PARTIAL_TRANSCRIPT:
-                    await websocket.send_json({
-                        "type": "partial_transcript",
-                        "text": str(msg.data),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "partial_transcript",
+                            "text": str(msg.data),
+                        }
+                    )
 
                 elif msg.event == PipelineEvent.FINAL_TRANSCRIPT:
                     interrupted = False
                     session.add_user_turn(str(msg.data))
-                    session.last_activity = time.time()
                     session.update(pipeline.context(session_id))
-                    await websocket.send_json({
-                        "type": "transcript",
-                        "text": str(msg.data),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "transcript",
+                            "text": str(msg.data),
+                        }
+                    )
 
                 elif msg.event == PipelineEvent.LLM_TOKEN:
                     session.set_state(DialogueState.INTERRUPTIBLE)
-                    await websocket.send_json({
-                        "type": "llm_token",
-                        "token": str(msg.data),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "llm_token",
+                            "token": str(msg.data),
+                        }
+                    )
 
                 elif msg.event == PipelineEvent.LLM_DONE:
                     session.add_ai_turn(str(msg.data))
-                    await websocket.send_json({
-                        "type": "llm_done",
-                        "text": str(msg.data),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "llm_done",
+                            "text": str(msg.data),
+                        }
+                    )
 
                 elif msg.event == PipelineEvent.TTS_CHUNK:
                     if isinstance(msg.data, bytes):
@@ -162,20 +166,24 @@ async def webrtc_signal(websocket: WebSocket):
                         tts_track.push_pcm(pcm, sr)
 
                 elif msg.event == PipelineEvent.RESPONSE_DELAY:
-                    await websocket.send_json({
-                        "type": "status",
-                        "text": f"waiting {msg.data}s",
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "status",
+                            "text": f"waiting {msg.data}s",
+                        }
+                    )
 
                 elif msg.event == PipelineEvent.TTS_DONE:
                     session.set_state(DialogueState.IDLE)
                     await websocket.send_json({"type": "tts_done"})
 
                 elif msg.event == PipelineEvent.BACKCHANNEL:
-                    await websocket.send_json({
-                        "type": "backchannel",
-                        "text": str(msg.data),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "backchannel",
+                            "text": str(msg.data),
+                        }
+                    )
 
                 elif msg.event == PipelineEvent.INTERRUPT:
                     interrupted = True
@@ -184,10 +192,12 @@ async def webrtc_signal(websocket: WebSocket):
                     await websocket.send_json({"type": "interrupt"})
 
                 elif msg.event == PipelineEvent.ERROR:
-                    await websocket.send_json({
-                        "type": "error",
-                        "text": str(msg.data),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "text": str(msg.data),
+                        }
+                    )
 
             except Exception:
                 break
@@ -202,16 +212,25 @@ async def webrtc_signal(websocket: WebSocket):
         while True:
             try:
                 frame = await track.recv()
-                _active_sessions[session_id] = time.time()
 
                 arr = frame.to_ndarray()
                 pcm = arr.tobytes()
 
                 if frame.sample_rate != 16000:
                     from utils.audio import resample_pcm
+
                     pcm = resample_pcm(pcm, frame.sample_rate, 16000)
 
-                await pipeline.push_audio(pcm, session_id)
+                if 0 < len(pcm) <= MAX_FRAME_BYTES:
+                    total = _session_bytes.get(session_id, 0) + len(pcm)
+                    if total > MAX_SESSION_BYTES:
+                        logger.warning(
+                            f"session {session_id} exceeded audio budget; "
+                            f"dropping {len(pcm)} bytes"
+                        )
+                    else:
+                        _session_bytes[session_id] = total
+                        await pipeline.push_audio(pcm, session_id)
             except (asyncio.CancelledError, Exception) as e:
                 logger.debug(f"session {session_id} audio track done: {e}")
                 break
@@ -229,8 +248,6 @@ async def webrtc_signal(websocket: WebSocket):
             if raw.get("type") == "websocket.disconnect":
                 break
 
-            _active_sessions[session_id] = time.time()
-
             if "text" in raw:
                 try:
                     data = json.loads(raw["text"])
@@ -244,16 +261,16 @@ async def webrtc_signal(websocket: WebSocket):
                         await pipeline.signal_interrupt(session_id)
 
                     elif msg_type == "offer":
-                        offer = RTCSessionDescription(
-                            sdp=data["sdp"], type="offer"
-                        )
+                        offer = RTCSessionDescription(sdp=data["sdp"], type="offer")
                         await pc.setRemoteDescription(offer)
                         answer = await pc.createAnswer()
                         await pc.setLocalDescription(answer)
-                        await websocket.send_json({
-                            "type": "answer",
-                            "sdp": pc.localDescription.sdp,
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "answer",
+                                "sdp": pc.localDescription.sdp,
+                            }
+                        )
                         logger.info(f"session {session_id} webrtc connected")
 
                     elif msg_type == "ice":
@@ -270,7 +287,7 @@ async def webrtc_signal(websocket: WebSocket):
                         await pc.addIceCandidate(candidate)
 
                 except json.JSONDecodeError:
-                    pass
+                    logger.debug(f"session {session_id} dropped invalid JSON frame")
 
     except WebSocketDisconnect:
         logger.info(f"session {session_id} disconnected")
@@ -279,7 +296,7 @@ async def webrtc_signal(websocket: WebSocket):
     finally:
         pump_task.cancel()
         pipeline.unregister_session(session_id)
-        _active_sessions.pop(session_id, None)
+        _session_bytes.pop(session_id, None)
         unregister_session(session_id)
         await pc.close()
         logger.info(f"session {session_id} cleaned up")

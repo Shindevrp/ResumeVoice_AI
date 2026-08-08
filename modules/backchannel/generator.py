@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 
-
 BACKCHANNEL_CANDIDATES = {
     "acknowledging": ["uh-huh", "hmm", "right", "yeah", "okay", "i see"],
     "agreeing": ["yeah", "right", "exactly", "totally", "for sure"],

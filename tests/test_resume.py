@@ -5,12 +5,12 @@ import asyncio
 from core.pipeline import ConversationContext, StreamingPipeline
 from modules.dialogue.resume import (
     ResumeData,
-    load_resume_data,
     _build,
     _split_sections,
+    load_resume_data,
 )
 from modules.memory.session import SessionMemory
-from tests.test_streaming import FakeSTT, FakeLLM, FakeTTS, FakeVAD
+from tests.test_streaming import FakeLLM, FakeSTT, FakeTTS, FakeVAD
 
 
 class TestResumeParsing:
@@ -52,7 +52,9 @@ class TestResumeParsing:
         ]
 
     def test_build_extracts_header(self) -> None:
-        data = _build("VINAYAK SHINDE\nEngineer\ncontact\n\nPROFESSIONAL SUMMARY\nHello")
+        data = _build(
+            "VINAYAK SHINDE\nEngineer\ncontact\n\nPROFESSIONAL SUMMARY\nHello"
+        )
         assert data is not None
         assert data.name == "VINAYAK SHINDE"
         assert data.headline == "Engineer"
@@ -80,7 +82,9 @@ class TestResumePrompt:
 
 class TestResumePipeline:
     def _pipeline(self, resume: ResumeData | None) -> StreamingPipeline:
-        return StreamingPipeline(FakeSTT(), FakeLLM(), FakeTTS(), FakeVAD(), resume=resume)
+        return StreamingPipeline(
+            FakeSTT(), FakeLLM(), FakeTTS(), FakeVAD(), resume=resume
+        )
 
     def test_resume_block_injected_into_messages(self) -> None:
         resume = load_resume_data()
@@ -98,9 +102,7 @@ class TestResumePipeline:
     def test_no_resume_block_when_unset(self) -> None:
         async def run() -> None:
             p = self._pipeline(None)
-            msgs = await p._build_messages(
-                "hi", ConversationContext(), None, None
-            )
+            msgs = await p._build_messages("hi", ConversationContext(), None, None)
             assert "Candidate profile" not in msgs[0]["content"]
 
         asyncio.run(run())

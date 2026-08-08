@@ -3,10 +3,40 @@ from __future__ import annotations
 _SENTENCE_TERMINATORS = frozenset(".!?")
 _CLAUSE_CHARS = frozenset(",;:\u2014-")
 _ABBREVIATIONS = {
-    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "mt", "dept",
-    "e.g", "i.e", "etc", "vs", "cf", "al", "fig", "no", "vol",
-    "approx", "inc", "ltd", "co", "jan", "feb", "mar", "apr", "jun",
-    "jul", "aug", "sep", "oct", "nov", "dec",
+    "mr",
+    "mrs",
+    "ms",
+    "dr",
+    "prof",
+    "sr",
+    "jr",
+    "st",
+    "mt",
+    "dept",
+    "e.g",
+    "i.e",
+    "etc",
+    "vs",
+    "cf",
+    "al",
+    "fig",
+    "no",
+    "vol",
+    "approx",
+    "inc",
+    "ltd",
+    "co",
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
 }
 
 
@@ -113,13 +143,13 @@ class TTSChunker:
         start = idx - 1
         while start >= 0 and (text[start].isdigit() or text[start] == ","):
             start -= 1
-        if text[start + 1:idx] and text[start + 1:idx].isdigit():
+        if text[start + 1 : idx] and text[start + 1 : idx].isdigit():
             return True
         # Word ending at the period.
         start = idx - 1
         while start >= 0 and (text[start].isalnum() or text[start] in "'._"):
             start -= 1
-        word = text[start + 1:idx].strip().rstrip(".").lower()
+        word = text[start + 1 : idx].strip().rstrip(".").lower()
         if not word:
             return False
         if word in _ABBREVIATIONS:

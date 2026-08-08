@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
-
-from core.state import SessionState, DialogueState
+from core.state import DialogueState, SessionState
 
 
 class TestSessionState:

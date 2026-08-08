@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import numpy as np
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
+import numpy as np
 from faster_whisper import WhisperModel
 
 from providers.stt.base import STTProvider
@@ -18,7 +18,9 @@ class FasterWhisperSTT(STTProvider):
         language: str = "en",
     ) -> None:
         self.model = WhisperModel(
-            model_size, device=device, compute_type=compute_type,
+            model_size,
+            device=device,
+            compute_type=compute_type,
             num_workers=1,
         )
         self.language = language
@@ -33,9 +35,7 @@ class FasterWhisperSTT(STTProvider):
                 continue
             chunk_to_process = bytes(buffer)
             buffer.clear()
-            result = await asyncio.to_thread(
-                self._transcribe_segment, chunk_to_process
-            )
+            result = await asyncio.to_thread(self._transcribe_segment, chunk_to_process)
             if result:
                 yield result
 

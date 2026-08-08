@@ -3,8 +3,6 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from utils.logger import logger
-
 
 class SileroVAD:
     def __init__(
@@ -48,7 +46,7 @@ class SileroVAD:
 
         with torch.no_grad():
             for start in range(0, len(audio), num_samples):
-                frame = audio[start:start + num_samples]
+                frame = audio[start : start + num_samples]
                 if len(frame) < num_samples:
                     break
                 audio_tensor = torch.from_numpy(frame).unsqueeze(0).to(self.device)

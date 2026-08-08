@@ -15,9 +15,17 @@ def main() -> None:
 
     demo = sub.add_parser("demo", help="Run a local microphone demo")
     demo.add_argument("--stt-model", default="base", help="faster-whisper model size")
-    demo.add_argument("--llm-url", default="http://localhost:8000/v1", help="vLLM base URL")
-    demo.add_argument("--llm-model", default="Qwen/Qwen2.5-7B-Instruct-AWQ", help="LLM model name")
-    demo.add_argument("--tts-model", default="/usr/share/piper/voices/en_US-lessac-medium.onnx", help="Piper TTS model path")
+    demo.add_argument(
+        "--llm-url", default="http://localhost:8000/v1", help="vLLM base URL"
+    )
+    demo.add_argument(
+        "--llm-model", default="Qwen/Qwen2.5-7B-Instruct-AWQ", help="LLM model name"
+    )
+    demo.add_argument(
+        "--tts-model",
+        default="/usr/share/piper/voices/en_US-lessac-medium.onnx",
+        help="Piper TTS model path",
+    )
     demo.add_argument("--vad-threshold", type=float, default=0.5, help="VAD threshold")
 
     args = parser.parse_args()
@@ -30,23 +38,23 @@ def main() -> None:
 
 def _run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     import uvicorn
+
     uvicorn.run("app.server:app", host=host, port=port, reload=False)
 
 
 async def _run_demo(args: argparse.Namespace) -> None:
     try:
-        import sounddevice as sd
         import numpy as np
+        import sounddevice as sd
     except ImportError:
         print("Install sounddevice: pip install sounddevice")
         sys.exit(1)
 
-    from core.pipeline import StreamingPipeline, PipelineEvent
-    from providers.stt.faster_whisper_stt import FasterWhisperSTT
-    from providers.llm.vllm_llm import VLLMProvider
-    from providers.tts.piper_tts import PiperTTS
+    from core.pipeline import PipelineEvent, StreamingPipeline
     from modules.vad.silero_vad import SileroVAD
-    from utils.logger import logger
+    from providers.llm.vllm_llm import VLLMProvider
+    from providers.stt.faster_whisper_stt import FasterWhisperSTT
+    from providers.tts.piper_tts import PiperTTS
 
     print("Initializing ResumeVoice AI pipeline...")
     stt = FasterWhisperSTT(model_size=args.stt_model, device="cuda")

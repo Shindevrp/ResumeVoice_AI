@@ -9,9 +9,13 @@ def pcm_to_float(pcm: bytes) -> np.ndarray:
 
 
 def float_to_pcm(samples: np.ndarray) -> bytes:
-    """Convert float32 array [-1, 1] to 16-bit PCM bytes."""
+    """Convert float32 array [-1, 1] to 16-bit PCM bytes.
+
+    Inverse of `pcm_to_float`: uses the same 32768 scale so a
+    round-trip reproduces the original samples exactly.
+    """
     samples = np.clip(samples, -1.0, 1.0)
-    return (samples * 32767).astype(np.int16).tobytes()
+    return (samples * 32768).astype(np.int16).tobytes()
 
 
 def rms_energy(pcm: bytes) -> float:
@@ -19,12 +23,10 @@ def rms_energy(pcm: bytes) -> float:
     samples = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
     if len(samples) == 0:
         return 0.0
-    return float(np.sqrt(np.mean(samples ** 2)))
+    return float(np.sqrt(np.mean(samples**2)))
 
 
-def is_silence(
-    pcm: bytes, threshold: float = 500.0, sample_rate: int = 16000
-) -> bool:
+def is_silence(pcm: bytes, threshold: float = 500.0, sample_rate: int = 16000) -> bool:
     """Check if PCM chunk is silence based on RMS energy."""
     return rms_energy(pcm) < threshold
 
@@ -34,7 +36,7 @@ def normalize_audio(pcm: bytes, target_level: float = 0.3) -> bytes:
     samples = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
     if len(samples) == 0:
         return pcm
-    current_rms = float(np.sqrt(np.mean(samples ** 2)))
+    current_rms = float(np.sqrt(np.mean(samples**2)))
     if current_rms < 1.0:
         return pcm
     gain = target_level * 32767 / max(current_rms, 1.0)
@@ -48,9 +50,7 @@ def audio_duration_seconds(samples: int, sample_rate: int = 16000) -> float:
     return samples / sample_rate
 
 
-def resample_pcm(
-    pcm: bytes, orig_rate: int, target_rate: int
-) -> bytes:
+def resample_pcm(pcm: bytes, orig_rate: int, target_rate: int) -> bytes:
     """Resample PCM audio from orig_rate to target_rate."""
     if orig_rate == target_rate:
         return pcm

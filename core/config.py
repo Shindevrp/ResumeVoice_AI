@@ -4,6 +4,17 @@ import os
 from dataclasses import dataclass, field
 
 
+def _env_bool(name: str, default: str = "1") -> bool:
+    return os.getenv(name, default) != "0"
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass(frozen=True)
 class CoreConfig:
     # STT
@@ -19,7 +30,9 @@ class CoreConfig:
 
     # LLM
     llm_url: str = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_LLM_URL", "http://localhost:8000/v1")
+        default_factory=lambda: os.getenv(
+            "RESUMEVOICE_LLM_URL", "http://localhost:8000/v1"
+        )
     )
     llm_model: str = field(
         default_factory=lambda: os.getenv(
@@ -29,9 +42,15 @@ class CoreConfig:
     llm_api_key: str = field(
         default_factory=lambda: os.getenv("RESUMEVOICE_LLM_API_KEY", "EMPTY")
     )
-    llm_temperature: float = 0.7
-    llm_max_tokens: int = 512
-    llm_top_p: float = 0.9
+    llm_temperature: float = field(
+        default_factory=lambda: _env_float("RESUMEVOICE_LLM_TEMPERATURE", 0.7)
+    )
+    llm_max_tokens: int = field(
+        default_factory=lambda: int(os.getenv("RESUMEVOICE_LLM_MAX_TOKENS", "512"))
+    )
+    llm_top_p: float = field(
+        default_factory=lambda: _env_float("RESUMEVOICE_LLM_TOP_P", 0.9)
+    )
 
     # TTS
     tts_model: str = field(
@@ -43,14 +62,15 @@ class CoreConfig:
 
     # VAD
     vad_threshold: float = field(
-        default_factory=lambda: float(os.getenv("RESUMEVOICE_VAD_THRESHOLD", "0.5"))
+        default_factory=lambda: _env_float("RESUMEVOICE_VAD_THRESHOLD", 0.5)
     )
-    vad_sample_rate: int = 16000
-    silence_ms: float = 400.0
+    vad_device: str = field(
+        default_factory=lambda: os.getenv("RESUMEVOICE_VAD_DEVICE", "cpu")
+    )
 
     # Emotion classification
     emotion_enabled: bool = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_EMOTION_ENABLED", "1") != "0"
+        default_factory=lambda: _env_bool("RESUMEVOICE_EMOTION_ENABLED")
     )
     emotion_model: str = field(
         default_factory=lambda: os.getenv(
@@ -59,20 +79,13 @@ class CoreConfig:
         )
     )
     emotion_device: str | None = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_EMOTION_DEVICE", "cuda")
+        default_factory=lambda: os.getenv("RESUMEVOICE_EMOTION_DEVICE", "cpu")
     )
 
     # Resume persona (personal voice agent)
     resume_enabled: bool = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_RESUME_ENABLED", "1") != "0"
+        default_factory=lambda: _env_bool("RESUMEVOICE_RESUME_ENABLED")
     )
     resume_path: str = field(
         default_factory=lambda: os.getenv("RESUMEVOICE_RESUME_PATH", "")
     )
-
-    # Pipeline
-    audio_queue_size: int = 512
-    output_queue_size: int = 512
-    default_timeout: float = 30.0
-    default_language: str = "en"
-    session_timeout: float = 300.0

@@ -26,17 +26,13 @@ class InterruptHandler:
         if not is_speaking:
             return False
 
-        if energy > (
-            self.speech_energy_threshold if threshold is None else threshold
-        ):
+        if energy > (self.speech_energy_threshold if threshold is None else threshold):
             self._speech_frame_count += 1
         else:
             self._speech_frame_count = 0
 
         target = (
-            self.consecutive_speech_frames
-            if target_frames is None
-            else target_frames
+            self.consecutive_speech_frames if target_frames is None else target_frames
         )
         if self._speech_frame_count >= target:
             self._speech_frame_count = 0

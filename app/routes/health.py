@@ -27,6 +27,7 @@ async def readiness(request: Request):
     pipeline = request.app.state.pipeline
     if pipeline is None:
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=503,
             content={"status": "not_ready", "pipeline": False},

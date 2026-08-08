@@ -7,9 +7,14 @@ import time
 
 import pytest
 
-from core.pipeline import StreamingPipeline, ConversationContext, PipelineEvent, FRAME_BYTES
+from core.pipeline import (
+    FRAME_BYTES,
+    ConversationContext,
+    PipelineEvent,
+    StreamingPipeline,
+)
 from core.state import DialogueState
-from modules.backchannel.generator import BackchannelGenerator, BACKCHANNEL_CANDIDATES
+from modules.backchannel.generator import BACKCHANNEL_CANDIDATES, BackchannelGenerator
 from modules.turn.timing import TurnTiming
 
 
@@ -143,9 +148,8 @@ def _is_label_call(messages) -> bool:
     if not messages:
         return False
     first = messages[0]
-    return (
-        first.get("role") == "system"
-        and "label conversation topics" in first.get("content", "")
+    return first.get("role") == "system" and "label conversation topics" in first.get(
+        "content", ""
     )
 
 
@@ -253,9 +257,7 @@ class TestBackgroundTopicLabeling:
             while not p._output_queue.empty():
                 msg = p._output_queue.get_nowait()
                 msgs.append((msg.event, msg.data))
-            tokens = [
-                d for ev, d in msgs if ev == PipelineEvent.LLM_TOKEN
-            ]
+            tokens = [d for ev, d in msgs if ev == PipelineEvent.LLM_TOKEN]
             assert tokens, "expected an LLM_TOKEN from the speculated response"
             assert tokens[0] == "Hello there, this is a test."
 
@@ -325,8 +327,12 @@ class TestMultiSessionIsolation:
             p.llm = FakeLLMText()
             p.tts = FakeTTSStream()
 
-            await p._process_speech_segment(b"\x00" * 1600, "sess", ConversationContext())
-            await p._process_speech_segment(b"\x00" * 1600, "sess", ConversationContext())
+            await p._process_speech_segment(
+                b"\x00" * 1600, "sess", ConversationContext()
+            )
+            await p._process_speech_segment(
+                b"\x00" * 1600, "sess", ConversationContext()
+            )
 
             assert "sess" not in p._current_tasks
             assert len(p.tts.synthesized) == 2
@@ -670,18 +676,14 @@ class TestInterruptDuringThinking:
     def test_signal_interrupt_cancels_inflight_llm(self) -> None:
         async def run() -> None:
             p = _make_pipeline()
-            p.turn_timing = TurnTiming(
-                base_delay=0.0, min_delay=0.0, max_delay=0.0
-            )
+            p.turn_timing = TurnTiming(base_delay=0.0, min_delay=0.0, max_delay=0.0)
             p.stt = FakeSTTText()
             llm = TrackLLM()
             p.llm = llm
             p.tts = FakeTTSStream()
 
             task = asyncio.create_task(
-                p._process_speech_segment(
-                    b"\x00" * 1600, "sess", ConversationContext()
-                )
+                p._process_speech_segment(b"\x00" * 1600, "sess", ConversationContext())
             )
             await asyncio.sleep(0.05)
             assert llm.started == 1
@@ -700,26 +702,20 @@ class TestInterruptDuringThinking:
     def test_new_segment_cancels_previous_turn(self) -> None:
         async def run() -> None:
             p = _make_pipeline()
-            p.turn_timing = TurnTiming(
-                base_delay=0.0, min_delay=0.0, max_delay=0.0
-            )
+            p.turn_timing = TurnTiming(base_delay=0.0, min_delay=0.0, max_delay=0.0)
             p.stt = FakeSTTText()
             llm = FirstBlockThenStreamLLM()
             p.llm = llm
             p.tts = FakeTTSStream()
 
             first = asyncio.create_task(
-                p._process_speech_segment(
-                    b"\x00" * 1600, "sess", ConversationContext()
-                )
+                p._process_speech_segment(b"\x00" * 1600, "sess", ConversationContext())
             )
             await asyncio.sleep(0.05)
             assert llm.calls == 1
 
             second = asyncio.create_task(
-                p._process_speech_segment(
-                    b"\x00" * 1600, "sess", ConversationContext()
-                )
+                p._process_speech_segment(b"\x00" * 1600, "sess", ConversationContext())
             )
             await asyncio.sleep(0.05)
 

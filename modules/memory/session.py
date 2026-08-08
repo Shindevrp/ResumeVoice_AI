@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -54,10 +54,12 @@ class SessionMemory:
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         if self.summary:
-            messages.append({
-                "role": "system",
-                "content": f"Conversation summary so far:\n{self.summary}",
-            })
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Conversation summary so far:\n{self.summary}",
+                }
+            )
         for entry in self.entries:
             messages.append({"role": entry.role, "content": entry.content})
         return messages

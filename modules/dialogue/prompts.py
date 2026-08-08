@@ -6,8 +6,7 @@ SYSTEM_PROMPT_BASE = (
 )
 
 SYSTEM_PROMPT_SIMPLE = (
-    " Keep responses very brief. One or two short sentences max. "
-    "Be warm and direct."
+    " Keep responses very brief. One or two short sentences max. Be warm and direct."
 )
 
 SYSTEM_PROMPT_STANDARD = (
@@ -61,9 +60,7 @@ ANTI_REPETITION = (
     "yourself repeating, rephrase once and continue."
 )
 
-SHORT_BEHAVIORS = (
-    " Be natural but very brief. Avoid long explanations."
-)
+SHORT_BEHAVIORS = " Be natural but very brief. Avoid long explanations."
 
 ONGOING_CONVERSATION = (
     " This is an ongoing conversation. Refer to previous "

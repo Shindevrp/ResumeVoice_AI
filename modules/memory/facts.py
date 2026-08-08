@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 EXTRACTOR_SYSTEM_PROMPT = (
     "Extract durable personal facts from the user's spoken message. "
@@ -25,7 +25,19 @@ class Fact:
     source: str = "regex"
 
 
-_CONNECTORS = {"and", "with", "for", "near", "at", "in", "on", "close", "but", "like", "close to"}
+_CONNECTORS = {
+    "and",
+    "with",
+    "for",
+    "near",
+    "at",
+    "in",
+    "on",
+    "close",
+    "but",
+    "like",
+    "close to",
+}
 
 _ValueFn = Callable[[re.Match], tuple[str, str]]
 
@@ -70,19 +82,94 @@ def _owns(m: re.Match) -> tuple[str, str]:
 
 # (category, compiled regex, value extractor) — high-precision only.
 _RULES: list[tuple[str, re.Pattern[str], _ValueFn]] = [
-    ("identity", re.compile(r"\b(?:my name is|i'?m called|you can call me|call me)\s+([a-z]+)", re.IGNORECASE), _kv("name")),
+    (
+        "identity",
+        re.compile(
+            r"\b(?:my name is|i'?m called|you can call me|call me)\s+([a-z]+)",
+            re.IGNORECASE,
+        ),
+        _kv("name"),
+    ),
     ("identity", re.compile(r"\bmy age is\s+(\d{1,3})\b", re.IGNORECASE), _kv("age")),
-    ("identity", re.compile(r"\b(?:i'?m|i am)\s+(\d{1,3})\s+(?:years? old|yo)\b", re.IGNORECASE), _kv("age")),
-    ("personal", re.compile(r"\bi (?:live in|stay in|am from|'m from|moved to)\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE), _kv("location")),
-    ("personal", re.compile(r"\b(?:i work as|i work at|my job is)\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE), _kv("job")),
-    ("personal", re.compile(r"\b(?:i|we) have (?:a|an)\s+(dog|cat|bird|fish|hamster|rabbit|parrot|turtle)\b(?:\s+named\s+([a-z]+))?", re.IGNORECASE), _pet),
-    ("personal", re.compile(r"\bmy (wife|husband|daughter|son|mother|father|sister|brother|mom|dad|girlfriend|boyfriend)\s+is\s+(?:named\s+)?([a-z]+)\b", re.IGNORECASE), _family_name),
-    ("personal", re.compile(r"\bmy (daughter|son|sister|brother|wife|husband|mom|dad)\s+is\s+(\d{1,3})\b", re.IGNORECASE), _family_age),
-    ("preference", re.compile(r"\bi'?m\s+(?:a|an)?\s*(vegetarian|vegan|pescatarian|flexitarian)\b", re.IGNORECASE), _kv("diet")),
-    ("preference", re.compile(r"\bi (?:don'?t|do not)\s+eat\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE), _avoids),
-    ("preference", re.compile(r"\bmy favourite? food is\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE), _kv("favorite_food")),
-    ("preference", re.compile(r"\b(?:my hobby is|i love to)\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE), _kv("hobby")),
-    ("personal", re.compile(r"\b(?:i own|i bought)\s+(?:a|an|my)\s+(house|car|apartment|bike|motorcycle)\b", re.IGNORECASE), _owns),
+    (
+        "identity",
+        re.compile(r"\b(?:i'?m|i am)\s+(\d{1,3})\s+(?:years? old|yo)\b", re.IGNORECASE),
+        _kv("age"),
+    ),
+    (
+        "personal",
+        re.compile(
+            r"\bi (?:live in|stay in|am from|'m from|moved to)\s+([a-z]+(?: [a-z]+)?)",
+            re.IGNORECASE,
+        ),
+        _kv("location"),
+    ),
+    (
+        "personal",
+        re.compile(
+            r"\b(?:i work as|i work at|my job is)\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE
+        ),
+        _kv("job"),
+    ),
+    (
+        "personal",
+        re.compile(
+            r"\b(?:i|we) have (?:a|an)\s+(dog|cat|bird|fish|hamster|rabbit|parrot|turtle)\b(?:\s+named\s+([a-z]+))?",
+            re.IGNORECASE,
+        ),
+        _pet,
+    ),
+    (
+        "personal",
+        re.compile(
+            r"\bmy (wife|husband|daughter|son|mother|father|sister|brother|mom|dad|girlfriend|boyfriend)\s+is\s+(?:named\s+)?([a-z]+)\b",
+            re.IGNORECASE,
+        ),
+        _family_name,
+    ),
+    (
+        "personal",
+        re.compile(
+            r"\bmy (daughter|son|sister|brother|wife|husband|mom|dad)\s+is\s+(\d{1,3})\b",
+            re.IGNORECASE,
+        ),
+        _family_age,
+    ),
+    (
+        "preference",
+        re.compile(
+            r"\bi'?m\s+(?:a|an)?\s*(vegetarian|vegan|pescatarian|flexitarian)\b",
+            re.IGNORECASE,
+        ),
+        _kv("diet"),
+    ),
+    (
+        "preference",
+        re.compile(
+            r"\bi (?:don'?t|do not)\s+eat\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE
+        ),
+        _avoids,
+    ),
+    (
+        "preference",
+        re.compile(r"\bmy favourite? food is\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE),
+        _kv("favorite_food"),
+    ),
+    (
+        "preference",
+        re.compile(
+            r"\b(?:my hobby is|i love to)\s+([a-z]+(?: [a-z]+)?)", re.IGNORECASE
+        ),
+        _kv("hobby"),
+    ),
+    (
+        "personal",
+        re.compile(
+            r"\b(?:i own|i bought)\s+(?:a|an|my)\s+(house|car|apartment|bike|motorcycle)\b",
+            re.IGNORECASE,
+        ),
+        _owns,
+    ),
 ]
 
 

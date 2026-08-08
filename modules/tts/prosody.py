@@ -10,14 +10,48 @@ _COMMA = re.compile(r"(?<!\d),(?!\d)")
 _QUOTE_CHARS = {'"', "'", "\u201c", "\u201d", "\u2018", "\u2019"}
 
 _POSITIVE_WORDS = {
-    "great", "awesome", "amazing", "good", "nice", "love", "happy", "cool",
-    "wonderful", "fantastic", "excellent", "perfect", "thanks", "thank",
-    "please", "yes", "yeah", "sure", "glad", "beautiful", "fun",
+    "great",
+    "awesome",
+    "amazing",
+    "good",
+    "nice",
+    "love",
+    "happy",
+    "cool",
+    "wonderful",
+    "fantastic",
+    "excellent",
+    "perfect",
+    "thanks",
+    "thank",
+    "please",
+    "yes",
+    "yeah",
+    "sure",
+    "glad",
+    "beautiful",
+    "fun",
 }
 _NEGATIVE_WORDS = {
-    "bad", "terrible", "awful", "hate", "sad", "angry", "frustrated",
-    "frustrating", "annoyed", "confusing", "confused", "wrong", "broken",
-    "stupid", "no", "nope", "stop", "disappointed", "annoying",
+    "bad",
+    "terrible",
+    "awful",
+    "hate",
+    "sad",
+    "angry",
+    "frustrated",
+    "frustrating",
+    "annoyed",
+    "confusing",
+    "confused",
+    "wrong",
+    "broken",
+    "stupid",
+    "no",
+    "nope",
+    "stop",
+    "disappointed",
+    "annoying",
 }
 
 
@@ -140,7 +174,7 @@ def split_emphasis(sentence: str) -> list[tuple[str, bool]]:
     last = 0
     for m in _EMPHASIS_TOKEN.finditer(sentence):
         if m.start() > last:
-            segments.append((sentence[last:m.start()], False))
+            segments.append((sentence[last : m.start()], False))
         segments.append((m.group(0), True))
         last = m.end()
     if last < len(sentence):
@@ -270,9 +304,7 @@ class ProsodySelector:
         self._last_label = profile.label
         return profile
 
-    def _base_profile(
-        self, trajectory: str, engagement: float
-    ) -> ProsodyProfile:
+    def _base_profile(self, trajectory: str, engagement: float) -> ProsodyProfile:
         if trajectory == "rising" and engagement >= 0.6:
             return ProsodyProfile(
                 length_scale=0.8,

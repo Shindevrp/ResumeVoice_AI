@@ -56,8 +56,12 @@ class TestProsodySelector:
 
     def test_rising_engagement_is_eager_and_fast(self) -> None:
         sel = ProsodySelector()
-        eager = sel.select("Tell me more about it.", trajectory="rising", engagement=0.8)
-        calm = sel.select("Tell me more about it.", trajectory="falling", engagement=0.3)
+        eager = sel.select(
+            "Tell me more about it.", trajectory="rising", engagement=0.8
+        )
+        calm = sel.select(
+            "Tell me more about it.", trajectory="falling", engagement=0.3
+        )
         assert eager.label == "eager"
         assert eager.length_scale < calm.length_scale
 
@@ -69,12 +73,8 @@ class TestProsodySelector:
 
     def test_topic_shift_intro_slower_only_on_first_chunk(self) -> None:
         sel = ProsodySelector()
-        first = sel.select(
-            "Let us talk about space.", topic_shift=True, first=True
-        )
-        later = sel.select(
-            "Let us talk about space.", topic_shift=True, first=False
-        )
+        first = sel.select("Let us talk about space.", topic_shift=True, first=True)
+        later = sel.select("Let us talk about space.", topic_shift=True, first=False)
         assert first.length_scale > later.length_scale
         assert first.label == "conversational-intro"
 
@@ -86,9 +86,7 @@ class TestProsodySelector:
 
     def test_negative_sentiment_is_supportive_and_slower(self) -> None:
         sel = ProsodySelector()
-        supportive = sel.select(
-            "Let me help you.", user_sentiment="negative"
-        )
+        supportive = sel.select("Let me help you.", user_sentiment="negative")
         neutral = sel.select("Let me help you.", user_sentiment="neutral")
         assert "supportive" in supportive.label
         assert supportive.length_scale > neutral.length_scale
@@ -97,9 +95,9 @@ class TestProsodySelector:
         sel = ProsodySelector()
         warm = sel.select("Let me help you.", user_sentiment="positive")
         assert "warm" in warm.label
-        assert warm.noise_scale > ProsodySelector().select(
-            "Let me help you."
-        ).noise_scale
+        assert (
+            warm.noise_scale > ProsodySelector().select("Let me help you.").noise_scale
+        )
 
     def test_repetition_is_patient_and_slower(self) -> None:
         sel = ProsodySelector()
@@ -117,9 +115,7 @@ class TestProsodySelector:
 
     def test_complex_query_is_structured_and_slower(self) -> None:
         sel = ProsodySelector()
-        complex_p = sel.select(
-            "Here is the answer.", complexity="complex"
-        )
+        complex_p = sel.select("Here is the answer.", complexity="complex")
         standard_p = sel.select("Here is the answer.", complexity="standard")
         assert "structured" in complex_p.label
         assert complex_p.length_scale > standard_p.length_scale
@@ -228,18 +224,12 @@ class TestProsodyPipelineIntegration:
 class TestEchoGating:
     def test_looks_like_echo_positive(self) -> None:
         p = _make_pipeline()
-        p._last_spoken["sess"] = (
-            "let me explain the Hadamard matrix and its uses"
-        )
-        assert p._looks_like_echo(
-            "sess", "explain the Hadamard matrix"
-        )
+        p._last_spoken["sess"] = "let me explain the Hadamard matrix and its uses"
+        assert p._looks_like_echo("sess", "explain the Hadamard matrix")
 
     def test_looks_like_echo_negative_on_distinct_topic(self) -> None:
         p = _make_pipeline()
-        p._last_spoken["sess"] = (
-            "the weather is sunny and warm today"
-        )
+        p._last_spoken["sess"] = "the weather is sunny and warm today"
         assert not p._looks_like_echo("sess", "what is the capital of France")
 
     def test_segment_dropped_when_transcript_matches_last_spoken(self) -> None:

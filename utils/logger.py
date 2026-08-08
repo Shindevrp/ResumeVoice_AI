@@ -4,21 +4,40 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 _KNOWN_ATTRS = {
-    "args", "asctime", "created", "exc_info", "exc_text", "filename",
-    "funcName", "levelname", "levelno", "lineno", "message", "module",
-    "msecs", "msg", "name", "pathname", "process", "processName",
-    "relativeCreated", "stack_info", "thread", "threadName", "taskName",
+    "args",
+    "asctime",
+    "created",
+    "exc_info",
+    "exc_text",
+    "filename",
+    "funcName",
+    "levelname",
+    "levelno",
+    "lineno",
+    "message",
+    "module",
+    "msecs",
+    "msg",
+    "name",
+    "pathname",
+    "process",
+    "processName",
+    "relativeCreated",
+    "stack_info",
+    "thread",
+    "threadName",
+    "taskName",
 }
 
 
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         log: dict[str, Any] = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "name": record.name,
             "msg": record.getMessage(),
@@ -32,7 +51,9 @@ class JSONFormatter(logging.Formatter):
 
 
 def get_logger(name: str = "ResumeVoice", level: int = logging.INFO) -> logging.Logger:
-    logger = logging.getLogger(f"ResumeVoice.{name}" if name != "ResumeVoice" else "ResumeVoice")
+    logger = logging.getLogger(
+        f"ResumeVoice.{name}" if name != "ResumeVoice" else "ResumeVoice"
+    )
     if logger.handlers:
         return logger
     env_level = os.getenv("RESUMEVOICE_LOG_LEVEL", "").strip().upper()
