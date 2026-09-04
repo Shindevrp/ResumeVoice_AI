@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+_model_cache: dict[tuple[str, bool], torch.nn.Module] = {}
+
 
 class SileroVAD:
     def __init__(
@@ -20,6 +22,11 @@ class SileroVAD:
         self.model = self._load_model(model_path)
 
     def _load_model(self, model_path: str | None) -> torch.nn.Module:
+        cache_key = (self.device, bool(model_path))
+        if cache_key in _model_cache:
+            model = _model_cache[cache_key]
+            model.to(self.device)
+            return model
         model, _ = torch.hub.load(
             repo_or_dir="snakers4/silero-vad",
             model="silero_vad",
@@ -29,6 +36,12 @@ class SileroVAD:
         )
         model.eval()
         model.to(self.device)
+        # Optional torch.compile for inference speed on PyTorch >=2.0
+        try:
+            model = torch.compile(model, mode="reduce-overhead")
+        except Exception:
+            pass
+        _model_cache[cache_key] = model
         return model
 
     def reset(self) -> None:

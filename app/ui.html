@@ -76,7 +76,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
         </div>
         <div id="vdbg" class="vc-debug"></div>
         <div id="verr" class="vc-err"></div>
-        <div class="chat-box" id="vcc"><div class="empty-state">Speak or type below...</div></div>
+        <div class="chat-box" id="vcc"><div class="empty-state">Welcome! Greetings, I am Shinde Vinayak Rao Patil. Ask about my background, experience or resume.</div></div>
         <div class="controls">
           <button class="mic-btn" id="vcb">🎤</button>
         </div>
@@ -85,7 +85,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
     </div>
 
     <div id="textSection" style="display:none">
-      <div class="chat-box" id="tcc" style="min-height:80px;max-height:250px"><div class="empty-state">Type a message...</div></div>
+      <div class="chat-box" id="tcc" style="min-height:80px;max-height:250px"><div class="empty-state">Welcome! Greetings, I am Shinde Vinayak Rao Patil. Ask about my background, experience or resume.</div></div>
       <div class="input-row">
         <input type="text" id="tci" placeholder="Type a message..." autocomplete="off">
         <button id="tcb">Send</button>
@@ -114,7 +114,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
     if(!append||!box.lastElementChild||box.lastElementChild.className.indexOf('msg '+role)===-1){
       var el=document.createElement('div');
       el.className='msg '+role;
-      el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'ResumeVoice AI':'System')+'</span><span class="txt">'+esc(text)+'</span>';
+      el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'Shinde':'System')+'</span><span class="txt">'+esc(text)+'</span>';
       box.appendChild(el);
     }else{
       var last=box.lastElementChild;
@@ -214,12 +214,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
           else if(m.type==='partial_transcript'){dbg('Heard: '+m.text.slice(0,60));}
           else if(m.type==='transcript'){addMsg('user',m.text);dbg('You: '+m.text.slice(0,40));}
           else if(m.type==='llm_token'){
-            if(!c.querySelector('.msg.assistant')){sts('talk','Speaking...');dbg('ResumeVoice AI responding...');}
+            if(!c.querySelector('.msg.assistant')){sts('talk','Speaking...');dbg('Shinde responding...');}
             addMsg('assistant',m.token,true);
           }
           else if(m.type==='llm_done'){sts('','Done');dbg('Response complete');}
           else if(m.type==='tts_done'){if(act)sts('on','Listening...');dbg('TTS done');}
-          else if(m.type==='backchannel'){dbg('ResumeVoice AI: '+m.text);}
+          else if(m.type==='backchannel'){dbg('Shinde: '+m.text);}
           else if(m.type==='interrupt'){duckAudio();sts('on','Listening...');dbg('Interruption detected');}
           else if(m.type==='status'){dbg(m.text);}
           else if(m.type==='error'){err(m.text);dbg('Error: '+m.text);}
@@ -277,14 +277,14 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
     if(empty)empty.remove();
     var el=document.createElement('div');
     el.className='msg '+role;
-    el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'ResumeVoice AI':'System')+'</span><span class="txt">'+esc(text)+'</span>';
+    el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'Shinde':'System')+'</span><span class="txt">'+esc(text)+'</span>';
     tc.appendChild(el);tc.scrollTop=tc.scrollHeight;
   }
   function sendText(){
     var msg=ti.value.trim();if(!msg)return;
     ti.value='';tAdd('user',msg);
     var last=document.createElement('div');last.className='msg assistant';
-    last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt">...</span>';
+    last.innerHTML='<span class="lbl">Shinde</span><span class="txt">...</span>';
     tc.appendChild(last);tc.scrollTop=tc.scrollHeight;
     var xhr=new XMLHttpRequest();
     xhr.open('POST',(location.protocol==='https:'?'https:':'http:')+'//'+location.host+'/chat/stream',true);
@@ -297,12 +297,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
         if(!line.startsWith('data: '))continue;
         try{
           var p=JSON.parse(line.slice(6));
-          if(p.type==='token'){full+=p.token;last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt">'+esc(full)+'</span>';}
+          if(p.type==='token'){full+=p.token;last.innerHTML='<span class="lbl">Shinde</span><span class="txt">'+esc(full)+'</span>';}
         }catch(e){}
       }
     };
-    xhr.onload=function(){if(last)last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt">'+esc(full)+'</span>';};
-    xhr.onerror=function(){last.innerHTML='<span class="lbl">ResumeVoice AI</span><span class="txt" style="color:#EF4444">Connection error</span>';};
+    xhr.onload=function(){if(last)last.innerHTML='<span class="lbl">Shinde</span><span class="txt">'+esc(full)+'</span>';};
+    xhr.onerror=function(){last.innerHTML='<span class="lbl">Shinde</span><span class="txt" style="color:#EF4444">Connection error</span>';};
     xhr.send(JSON.stringify({message:msg}));
   }
   ti.addEventListener('keydown',function(e){if(e.key==='Enter')sendText();});

@@ -43,6 +43,12 @@ async def audio_websocket(websocket: WebSocket):
     pipeline.register_session(session_id, memory, retrieval)
     register_session(session)
 
+    # Send welcome message on connection
+    await websocket.send_json({
+        "type": "system",
+        "text": "Welcome! Greetings, I am Shinde Vinayak Rao Patil."
+    })
+
     async def pump_output():
         interrupted = False
         async for msg in pipeline.output_stream():

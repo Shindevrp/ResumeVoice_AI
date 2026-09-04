@@ -15,6 +15,7 @@ from core.pipeline import PipelineEvent, StreamingPipeline
 from core.state import DialogueState, SessionState
 from modules.memory.retrieval import RetrievalModule
 from modules.memory.session import SessionMemory
+from utils.audio import resample_pcm
 from utils.logger import get_logger
 
 logger = get_logger("webrtc")
@@ -102,6 +103,12 @@ async def webrtc_signal(websocket: WebSocket):
     pipeline.register_session(session_id, memory, retrieval)
     register_session(session)
 
+    # Send welcome message on connection
+    await websocket.send_json({
+        "type": "system",
+        "text": "Welcome! Greetings, I am Shinde Vinayak Rao Patil."
+    })
+
     async def pump_output():
         interrupted = False
         async for msg in pipeline.output_stream():
@@ -163,6 +170,10 @@ async def webrtc_signal(websocket: WebSocket):
                         sr, _ = _extract_wav_info(msg.data)
                         if sr == 0:
                             sr = 16000
+                        # WebRTC expects 48kHz Opus; resample Piper output to 48kHz
+                        if sr != 48000:
+                            pcm = resample_pcm(pcm, sr, 48000)
+                            sr = 48000
                         tts_track.push_pcm(pcm, sr)
 
                 elif msg.event == PipelineEvent.RESPONSE_DELAY:

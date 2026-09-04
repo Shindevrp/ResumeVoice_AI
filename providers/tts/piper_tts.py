@@ -27,6 +27,7 @@ class PiperTTS(TTSProvider):
         length_scale: float = 0.65,
         noise_scale: float = 0.4,
         noise_w: float = 0.5,
+        use_cuda: bool = True,
     ) -> None:
         self.model_path = Path(model_path)
         self.model_config_path = Path(model_config_path) if model_config_path else None
@@ -38,6 +39,7 @@ class PiperTTS(TTSProvider):
         )
         self._voice = None
         self._sample_rate: int = 22050
+        self._use_cuda = use_cuda
         self._warm_up()
 
     def _warm_up(self) -> None:
@@ -49,7 +51,7 @@ class PiperTTS(TTSProvider):
             self._voice = piper.PiperVoice.load(
                 self.model_path,
                 config_path=self.model_config_path,
-                use_cuda=True,
+                use_cuda=self._use_cuda,
             )
             self._sample_rate = self._voice.config.sample_rate
         return self._voice

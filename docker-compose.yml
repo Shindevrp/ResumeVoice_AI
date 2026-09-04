@@ -51,21 +51,31 @@ services:
   resumevoice:
     build: .
     container_name: resumevoice-app
-    depends_on:
-      vllm:
-        condition: service_healthy
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      - RESUMEVOICE_LLM_URL=http://vllm:8000/v1
-      - RESUMEVOICE_LLM_MODEL=${RESUMEVOICE_LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+      - RESUMEVOICE_LLM_URL=${RESUMEVOICE_LLM_URL:-http://host.docker.internal:11434/v1}
+      - RESUMEVOICE_LLM_MODEL=${RESUMEVOICE_LLM_MODEL:-qwen2.5:3b}
       - RESUMEVOICE_STT_MODEL=${RESUMEVOICE_STT_MODEL:-base}
-      - RESUMEVOICE_STT_DEVICE=${RESUMEVOICE_STT_DEVICE:-cpu}
-      - RESUMEVOICE_STT_COMPUTE=int8
+      - RESUMEVOICE_STT_DEVICE=${RESUMEVOICE_STT_DEVICE:-cuda}
+      - RESUMEVOICE_STT_COMPUTE=${RESUMEVOICE_STT_COMPUTE:-float16}
       - RESUMEVOICE_TTS_MODEL=/app/models/piper/en_US-lessac-medium.onnx
-      - RESUMEVOICE_VAD_THRESHOLD=0.5
+      - RESUMEVOICE_TTS_DEVICE=${RESUMEVOICE_TTS_DEVICE:-cuda}
+      - RESUMEVOICE_VAD_DEVICE=${RESUMEVOICE_VAD_DEVICE:-cuda}
+      - RESUMEVOICE_VAD_THRESHOLD=${RESUMEVOICE_VAD_THRESHOLD:-0.45}
     ports:
       - "8000:8000"
     volumes:
       - stt_cache:/root/.cache
+      - ./models/piper:/app/models/piper
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s

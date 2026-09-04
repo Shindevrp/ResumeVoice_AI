@@ -10,6 +10,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Optimize PyTorch for inference latency on CUDA
+try:
+    import torch
+    if torch.cuda.is_available():
+        torch.backends.cudnn.benchmark = True
+        torch.set_float32_matmul_precision("high")
+except Exception:
+    pass
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -60,6 +69,7 @@ def _build_providers():
 
     tts = PiperTTS(
         model_path=config.tts_model,
+        use_cuda=config.tts_device.lower() == "cuda",
     )
 
     vad = SileroVAD(

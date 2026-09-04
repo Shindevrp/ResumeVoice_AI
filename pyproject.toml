@@ -17,18 +17,21 @@ dependencies = [
 
 [project.optional-dependencies]
 stt = ["faster-whisper>=1.0.0", "webrtcvad>=2.0.10"]
-vad = ["torch>=2.0.0"]
+vad = ["torch>=2.0.0", "torchaudio>=2.0.0"]
 llm = ["openai>=1.0.0"]
 tts = ["piper-tts>=1.0.0"]
 memory = ["sentence-transformers>=2.2.0"]
 resume = ["pypdf>=3.0.0"]
+emotion = ["transformers>=4.40.0"]
 all = [
     "faster-whisper>=1.0.0",
     "webrtcvad>=2.0.10",
     "torch>=2.0.0",
+    "torchaudio>=2.0.0",
     "piper-tts>=1.0.0",
     "sentence-transformers>=2.2.0",
     "pypdf>=3.0.0",
+    "transformers>=4.40.0",
 ]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.24.0", "ruff>=0.6.0", "pytest-cov>=5.0.0"]
 

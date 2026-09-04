@@ -53,7 +53,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
       </div>
       <div id="vdbg" class="vc-debug"></div>
       <div id="verr" class="vc-err"></div>
-      <div class="chat-box" id="vcc"><div class="empty-state">Speak below...</div></div>
+      <div class="chat-box" id="vcc"><div class="empty-state">Welcome! Greetings, I am Shinde Vinayak Rao Patil. Ask about my background, experience or resume.</div></div>
       <button class="mic-btn" id="vcb">🎤</button>
     </div>
   </div>
@@ -76,7 +76,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
     if(!append||!c.lastElementChild||!c.lastElementChild.classList.contains('msg.'+role)){
       var el=document.createElement('div');
       el.className='msg '+role;
-      el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'ResumeVoice AI':'System')+'</span><span class="txt">'+esc(text)+'</span>';
+      el.innerHTML='<span class="lbl">'+(role==='user'?'You':role==='assistant'?'Shinde':'System')+'</span><span class="txt">'+esc(text)+'</span>';
       c.appendChild(el);
     }else{
       c.lastElementChild.querySelector('.txt').textContent+=esc(text);
@@ -161,12 +161,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
         else if(m.type==='partial_transcript'){dbg('Heard: '+m.text.slice(0,60));}
         else if(m.type==='transcript'){if(audioEl){audioEl.volume=1;}addMsg('user',m.text);dbg('You: '+m.text.slice(0,40));}
         else if(m.type==='llm_token'){
-          if(!c.querySelector('.msg.assistant')){sts('talk','Speaking...');dbg('ResumeVoice AI responding...');}
+          if(!c.querySelector('.msg.assistant')){sts('talk','Speaking...');dbg('Shinde responding...');}
           addMsg('assistant',m.token,true);
         }
         else if(m.type==='llm_done'){sts('','Done');dbg('Response complete');}
         else if(m.type==='tts_done'){sts('on','Listening...');dbg('TTS done, listening');}
-        else if(m.type==='backchannel'){dbg('ResumeVoice AI: '+m.text);}
+        else if(m.type==='backchannel'){dbg('Shinde: '+m.text);}
         else if(m.type==='interrupt'){duckAudio();sts('on','Listening...');dbg('Interruption detected');}
         else if(m.type==='status'){dbg(m.text);}
         else if(m.type==='error'){err(m.text);}

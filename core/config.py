@@ -22,7 +22,7 @@ class CoreConfig:
         default_factory=lambda: os.getenv("RESUMEVOICE_STT_MODEL", "base")
     )
     stt_device: str = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_STT_DEVICE", "cpu")
+        default_factory=lambda: os.getenv("RESUMEVOICE_STT_DEVICE", "cuda")
     )
     stt_compute: str = field(
         default_factory=lambda: os.getenv("RESUMEVOICE_STT_COMPUTE", "int8")
@@ -59,13 +59,16 @@ class CoreConfig:
             "/usr/share/piper/voices/en_US-lessac-medium.onnx",
         )
     )
+    tts_device: str = field(
+        default_factory=lambda: os.getenv("RESUMEVOICE_TTS_DEVICE", "cuda")
+    )
 
     # VAD
     vad_threshold: float = field(
-        default_factory=lambda: _env_float("RESUMEVOICE_VAD_THRESHOLD", 0.5)
+        default_factory=lambda: _env_float("RESUMEVOICE_VAD_THRESHOLD", 0.45)
     )
     vad_device: str = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_VAD_DEVICE", "cpu")
+        default_factory=lambda: os.getenv("RESUMEVOICE_VAD_DEVICE", "cuda")
     )
 
     # Emotion classification
@@ -87,5 +90,5 @@ class CoreConfig:
         default_factory=lambda: _env_bool("RESUMEVOICE_RESUME_ENABLED")
     )
     resume_path: str = field(
-        default_factory=lambda: os.getenv("RESUMEVOICE_RESUME_PATH", "")
+        default_factory=lambda: os.getenv("RESUMEVOICE_RESUME_PATH", "resume/resume.txt")
     )

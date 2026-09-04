@@ -43,14 +43,14 @@ from utils.logger import get_logger
 
 logger = get_logger("pipeline")
 
-ECHO_GRACE_SECONDS = 0.35
+ECHO_GRACE_SECONDS = 0.25
 ECHO_FLOOR_MARGIN = 1.5
 
-# Fixed pipeline frame: 128ms at 16k mono 16-bit. All incoming audio is
+# Fixed pipeline frame: 64ms at 16k mono 16-bit. All incoming audio is
 # segmented into these frames so VAD/turn logic sees uniform windows and the
 # SileroVAD hidden state decays across trailing-silence frames (otherwise a
 # large silence chunk can be misclassified as speech and swallow the turn end).
-FRAME_BYTES = 4096
+FRAME_BYTES = 2048
 
 # Energy floor (normalized 0-1) below which a frame is treated as silence even
 # if the VAD reports speech. Guards against the VAD RNN carrying its hidden
@@ -472,7 +472,7 @@ class StreamingPipeline:
     async def _pipeline_loop(self) -> None:
         chunk_count = 0
         prosody_update_interval = 5
-        partial_transcript_interval = 1.0
+        partial_transcript_interval = 0.5
 
         while self._running:
             try:
