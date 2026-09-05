@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,7 +28,7 @@ from app.routes.chat import router as chat_router
 from app.routes.health import router as health_router
 from app.routes.metrics import router as metrics_router
 from app.routes.sessions import router as sessions_router
-from app.routes.webrtc import router as webrtc_router
+from app.routes.webrtc import build_ice_servers, router as webrtc_router
 from app.routes.ws import router as ws_router
 from core.config import CoreConfig
 from core.pipeline import StreamingPipeline
@@ -185,14 +186,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8501",
+    "http://127.0.0.1:8501",
+]
+
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("RESUMEVOICE_CORS_ORIGINS", "")
+    if raw.strip():
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    return DEFAULT_CORS_ORIGINS
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "http://localhost:8501",
-        "http://127.0.0.1:8501",
-    ],
+    allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -236,3 +247,8 @@ def full_ui():
 @app.get("/webrtc", response_class=HTMLResponse)
 def webrtc_ui():
     return (Path(__file__).parent / "webrtc.html").read_text()
+
+
+@app.get("/webrtc/config")
+async def webrtc_config() -> JSONResponse:
+    return JSONResponse({"iceServers": build_ice_servers()})

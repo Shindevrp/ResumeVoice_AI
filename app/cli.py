@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 
 
@@ -10,8 +11,17 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
 
     server = sub.add_parser("server", help="Run the ResumeVoice AI WebSocket server")
-    server.add_argument("--host", default="127.0.0.1", help="Bind address")
-    server.add_argument("--port", type=int, default=8000, help="Bind port")
+    server.add_argument(
+        "--host",
+        default=os.getenv("RESUMEVOICE_HOST", "127.0.0.1"),
+        help="Bind address (env: RESUMEVOICE_HOST)",
+    )
+    server.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("RESUMEVOICE_PORT", "8000")),
+        help="Bind port (env: RESUMEVOICE_PORT)",
+    )
 
     demo = sub.add_parser("demo", help="Run a local microphone demo")
     demo.add_argument("--stt-model", default="base", help="faster-whisper model size")

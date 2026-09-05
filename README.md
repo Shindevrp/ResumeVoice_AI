@@ -97,6 +97,8 @@ audio ─ VAD ─ partial STT ─ turn detector
 | `/ws/audio` | WS | WebSocket PCM 16kHz audio |
 | `/ws/signal` | WS | WebRTC signaling (Opus RTP) |
 
+w
+
 ## Configuration
 
 Core env vars (see `core/config.py` and `.env.example` for the full list):

@@ -30,6 +30,7 @@ def _entry(s: SessionState) -> dict:
         "state": s.state.name.lower(),
         "topic": s.topic,
         "intent": s.intent,
+        "ice_connection_state": s.ice_connection_state,
         "engagement_score": round(s.engagement_score, 2),
         "total_user_turns": s.total_user_turns,
         "total_ai_turns": s.total_ai_turns,

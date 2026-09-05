@@ -1,0 +1,16 @@
+# ResumeVoice AI — Caddy TLS reverse proxy.
+# Set RESUMEVOICE_DOMAIN (e.g. voice.example.com) in /etc/caddy/caddy.env for a
+# Let's Encrypt cert. Without it the placeholder becomes "localhost" and the
+# :443 catch-all serves the /webrtc page + wss:// signaling with a self-signed
+# cert (fine for signaling, mic still requires a trusted cert + domain).
+
+{$RESUMEVOICE_DOMAIN:localhost} {
+  encode gzip
+  reverse_proxy 127.0.0.1:8000
+}
+
+:443 {
+  tls internal
+  encode gzip
+  reverse_proxy 127.0.0.1:8000
+}

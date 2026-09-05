@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import struct
 import uuid
 
-from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCConfiguration, RTCIceCandidate, RTCIceServer, RTCPeerConnection
+from aiortc import RTCSessionDescription
 from aiortc.mediastreams import AudioFrame, MediaStreamTrack
+from aiortc.sdp import candidate_from_sdp, candidate_to_sdp
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.session_registry import register as register_session
@@ -24,7 +27,41 @@ router = APIRouter(prefix="/ws", tags=["webrtc"])
 
 MAX_FRAME_BYTES = 65_536
 MAX_SESSION_BYTES = 200 * 1024 * 1024
+MAX_TEXT_CHARS = 2000
 _session_bytes: dict[str, int] = {}
+
+
+def build_ice_servers() -> list[dict[str, str]]:
+    """ICE (STUN/TURN) servers for the platform deployment, from env.
+
+    Set RESUMEVOICE_STUN_URL for a custom STUN and
+    RESUMEVOICE_TURN_URL / RESUMEVOICE_TURN_USERNAME /
+    RESUMEVOICE_TURN_CREDENTIAL to add a TURN relay. Used both by the
+    WebRTC peer (server side) and by /webrtc/config for browser clients.
+    """
+    servers = [
+        {
+            "urls": os.getenv(
+                "RESUMEVOICE_STUN_URL", "stun:stun.l.google.com:19302"
+            ).strip()
+        }
+    ]
+    turn_url = os.getenv("RESUMEVOICE_TURN_URL", "").strip()
+    if turn_url:
+        servers.append(
+            {
+                "urls": turn_url,
+                "username": os.getenv("RESUMEVOICE_TURN_USERNAME", ""),
+                "credential": os.getenv("RESUMEVOICE_TURN_CREDENTIAL", ""),
+            }
+        )
+    return servers
+
+
+def _make_ice_configuration() -> RTCConfiguration:
+    return RTCConfiguration(
+        iceServers=[RTCIceServer(**s) for s in build_ice_servers()]
+    )
 
 
 class TTSTrack(MediaStreamTrack):
@@ -37,12 +74,7 @@ class TTSTrack(MediaStreamTrack):
 
     def push_pcm(self, pcm: bytes, sample_rate: int) -> None:
         try:
-            frame = AudioFrame(
-                data=pcm,
-                sample_rate=sample_rate,
-                channels=1,
-            )
-            self._queue.put_nowait(frame)
+            self._queue.put_nowait(_new_audio_frame(pcm, sample_rate))
         except asyncio.QueueFull:
             pass
 
@@ -57,12 +89,7 @@ class TTSTrack(MediaStreamTrack):
         try:
             return await asyncio.wait_for(self._queue.get(), timeout=0.3)
         except TimeoutError:
-            silence = AudioFrame(
-                data=b"\x00" * 960 * 2,
-                sample_rate=48000,
-                channels=1,
-            )
-            return silence
+            return _new_audio_frame(b"\x00" * 960 * 2, 48000)
 
 
 def _strip_wav_header(data: bytes) -> bytes:
@@ -81,6 +108,63 @@ def _extract_wav_info(data: bytes) -> tuple[int, int]:
     return sample_rate, bits_per_sample
 
 
+def _new_audio_frame(data: bytes, sample_rate: int) -> AudioFrame:
+    """Build a 16-bit mono AudioFrame compatible with installed aiortc.
+
+    aiortc 1.15 (av-backed) rejects keyword construction (data=...); use the
+    geometry constructor + plane copy, and fall back for older releases that
+    only accept the keyword form.
+    """
+    try:
+        frame = AudioFrame(format="s16", layout="mono", samples=len(data) // 2)
+        frame.sample_rate = sample_rate
+        frame.planes[0].update(data)
+        return frame
+    except TypeError:
+        return AudioFrame(data=data, sample_rate=sample_rate, channels=1)
+
+
+def _candidate_to_payload(cand: RTCIceCandidate) -> dict:
+    return {
+        "candidate": "candidate:" + candidate_to_sdp(cand),
+        "sdpMid": cand.sdpMid or "0",
+        "sdpMLineIndex": 0 if cand.sdpMLineIndex is None else cand.sdpMLineIndex,
+    }
+
+
+def _candidate_from_payload(cand: dict) -> RTCIceCandidate:
+    """Build an RTCIceCandidate from a signaling payload.
+
+    Browsers serialize candidates as a single SDP line under the "candidate"
+    key (e.g. ``"candidate:3853… 1 udp 2122260223 192.168.1.97 48867 typ host …"``).
+    Earlier integrations sent a flat dict of fields instead. Support both, and
+    default to the single audio transceiver (sdpMid "0", index 0) when the
+    client omits them; aiortc rejects candidates that carry neither.
+    """
+    candidate_str = cand.get("candidate")
+    if isinstance(candidate_str, str) and candidate_str:
+        if candidate_str.startswith("candidate:"):
+            candidate_str = candidate_str.split(":", 1)[1]
+        try:
+            parsed = candidate_from_sdp(candidate_str)
+            parsed.sdpMid = cand.get("sdpMid") or "0"
+            parsed.sdpMLineIndex = cand.get("sdpMLineIndex", 0)
+            return parsed
+        except (AssertionError, ValueError, IndexError):
+            pass
+    return RTCIceCandidate(
+        component=cand.get("component", 1),
+        foundation=cand.get("foundation", "0"),
+        ip=cand.get("ip", ""),
+        port=cand.get("port", 0),
+        priority=cand.get("priority", 0),
+        protocol=cand.get("protocol", "udp"),
+        type=cand.get("type", "host"),
+        sdpMid=cand.get("sdpMid") or "0",
+        sdpMLineIndex=cand.get("sdpMLineIndex", 0),
+    )
+
+
 @router.websocket("/signal")
 async def webrtc_signal(websocket: WebSocket):
     await websocket.accept()
@@ -93,7 +177,7 @@ async def webrtc_signal(websocket: WebSocket):
         await websocket.close(1011)
         return
 
-    pc = RTCPeerConnection()
+    pc = RTCPeerConnection(configuration=_make_ice_configuration())
     tts_track = TTSTrack()
     pc.addTrack(tts_track)
 
@@ -111,7 +195,7 @@ async def webrtc_signal(websocket: WebSocket):
 
     async def pump_output():
         interrupted = False
-        async for msg in pipeline.output_stream():
+        async for msg in pipeline.output_stream(session_id):
             try:
                 if msg.session_id != session_id:
                     continue
@@ -166,6 +250,10 @@ async def webrtc_signal(websocket: WebSocket):
                     if isinstance(msg.data, bytes):
                         if interrupted:
                             continue
+                        # Playable WAV per chunk over the signaling WS so
+                        # programmatic (API) clients can play TTS audio without
+                        # decoding Opus/RTP. Mirrors /ws/audio behavior.
+                        await websocket.send_bytes(msg.data)
                         pcm = _strip_wav_header(msg.data)
                         sr, _ = _extract_wav_info(msg.data)
                         if sr == 0:
@@ -210,7 +298,10 @@ async def webrtc_signal(websocket: WebSocket):
                         }
                     )
 
-            except Exception:
+            except Exception as e:
+                logger.error(
+                    f"session {session_id} output pump error: {e}"
+                )
                 break
 
     pump_task = asyncio.create_task(pump_output())
@@ -246,8 +337,20 @@ async def webrtc_signal(websocket: WebSocket):
                 logger.debug(f"session {session_id} audio track done: {e}")
                 break
 
+    @pc.on("icecandidate")
+    async def on_ice_candidate(candidate: RTCIceCandidate) -> None:
+        if candidate is None:
+            return
+        try:
+            await websocket.send_json(
+                {"type": "ice", "candidate": _candidate_to_payload(candidate)}
+            )
+        except Exception:
+            pass
+
     @pc.on("iceconnectionstatechange")
     async def on_ice_state() -> None:
+        session.ice_connection_state = pc.iceConnectionState
         logger.info(f"session {session_id} ice state: {pc.iceConnectionState}")
         if pc.iceConnectionState in ("failed", "closed", "disconnected"):
             await pc.close()
@@ -271,6 +374,29 @@ async def webrtc_signal(websocket: WebSocket):
                         tts_track.flush()
                         await pipeline.signal_interrupt(session_id)
 
+                    elif msg_type == "text":
+                        text = data.get("text", "")
+                        if isinstance(text, str):
+                            text = text.strip()
+                        if not text:
+                            await websocket.send_json(
+                                {"type": "error", "text": "empty text message"}
+                            )
+                        elif len(text) > MAX_TEXT_CHARS:
+                            await websocket.send_json(
+                                {
+                                    "type": "error",
+                                    "text": f"text exceeds {MAX_TEXT_CHARS} chars",
+                                }
+                            )
+                        else:
+                            logger.info(
+                                f"session {session_id} text input: {text[:80]!r}"
+                            )
+                            asyncio.create_task(
+                                pipeline.push_text(text, session_id)
+                            )
+
                     elif msg_type == "offer":
                         offer = RTCSessionDescription(sdp=data["sdp"], type="offer")
                         await pc.setRemoteDescription(offer)
@@ -285,16 +411,7 @@ async def webrtc_signal(websocket: WebSocket):
                         logger.info(f"session {session_id} webrtc connected")
 
                     elif msg_type == "ice":
-                        cand = data["candidate"]
-                        candidate = RTCIceCandidate(
-                            component=cand.get("component", 1),
-                            foundation=cand.get("foundation", "0"),
-                            ip=cand.get("ip", ""),
-                            port=cand.get("port", 0),
-                            priority=cand.get("priority", 0),
-                            protocol=cand.get("protocol", "udp"),
-                            type=cand.get("type", "host"),
-                        )
+                        candidate = _candidate_from_payload(data["candidate"])
                         await pc.addIceCandidate(candidate)
 
                 except json.JSONDecodeError:

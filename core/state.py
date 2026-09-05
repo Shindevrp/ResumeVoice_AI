@@ -59,6 +59,7 @@ class SessionState:
     last_activity: float = 0.0
     topic: str = ""
     intent: str = "statement"
+    ice_connection_state: str = "new"
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def update(self, ctx: Any) -> None:

@@ -49,8 +49,9 @@ services:
       - resumevoice-net
 
   resumevoice:
-    build: .
+    image: resumevoice_ai-resumevoice:hostfix2
     container_name: resumevoice-app
+    network_mode: host
     runtime: nvidia
     deploy:
       resources:
@@ -59,10 +60,9 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
-      - RESUMEVOICE_LLM_URL=${RESUMEVOICE_LLM_URL:-http://host.docker.internal:11434/v1}
+      - RESUMEVOICE_LLM_URL=${RESUMEVOICE_LLM_URL:-http://127.0.0.1:11434/v1}
+      - RESUMEVOICE_HOST=0.0.0.0
       - RESUMEVOICE_LLM_MODEL=${RESUMEVOICE_LLM_MODEL:-qwen2.5:3b}
       - RESUMEVOICE_STT_MODEL=${RESUMEVOICE_STT_MODEL:-base}
       - RESUMEVOICE_STT_DEVICE=${RESUMEVOICE_STT_DEVICE:-cuda}
@@ -71,8 +71,8 @@ services:
       - RESUMEVOICE_TTS_DEVICE=${RESUMEVOICE_TTS_DEVICE:-cuda}
       - RESUMEVOICE_VAD_DEVICE=${RESUMEVOICE_VAD_DEVICE:-cuda}
       - RESUMEVOICE_VAD_THRESHOLD=${RESUMEVOICE_VAD_THRESHOLD:-0.45}
-    ports:
-      - "8000:8000"
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
     volumes:
       - stt_cache:/root/.cache
       - ./models/piper:/app/models/piper
@@ -83,8 +83,6 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
-    networks:
-      - resumevoice-net
 
 volumes:
   vllm_cache:

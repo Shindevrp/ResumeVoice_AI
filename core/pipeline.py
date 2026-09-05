@@ -150,6 +150,7 @@ class StreamingPipeline:
         self._tool_registry = get_builtin_tools()
         self._audio_queue: asyncio.Queue[PipelineMessage] = asyncio.Queue(512)
         self._output_queue: asyncio.Queue[PipelineMessage] = asyncio.Queue(512)
+        self._session_outputs: dict[str, asyncio.Queue[PipelineMessage]] = {}
         self._interrupt_events: dict[str, asyncio.Event] = {}
         self._tasks: list[asyncio.Task] = []
         self._current_tasks: dict[str, asyncio.Task] = {}
@@ -258,6 +259,73 @@ class StreamingPipeline:
         except asyncio.QueueFull:
             logger.warning("audio queue full, dropping chunk")
 
+    async def push_text(self, text: str, session_id: str = "default") -> None:
+        """Process a text message through the full LLM → TTS response path.
+
+        Mirrors the voice path used by ``_process_speech_segment``: a pending
+        turn is barged-in on (cancelled with an INTERRUPT event), the session
+        context (topic, intent, sentiment, turn count) is updated, and the
+        assistant reply is streamed over the same output events
+        (LLM_TOKEN / LLM_DONE / TTS_CHUNK / TTS_DONE). This lets platform
+        clients type text and receive streamed speech without touching the
+        mic.
+        """
+        if not text or not text.strip():
+            raise ValueError("empty text message")
+        text = text.strip()
+
+        prev = self._current_tasks.get(session_id)
+        if prev and not prev.done() and prev is not asyncio.current_task():
+            prev.cancel()
+            self._playback_active[session_id] = False
+            clear_task = self._playback_clear_tasks.pop(session_id, None)
+            if clear_task and not clear_task.done():
+                clear_task.cancel()
+            await self._emit(PipelineEvent.INTERRUPT, session_id=session_id)
+        int_ev = self._int_event(session_id)
+        int_ev.clear()
+        ctx = self._ctx(session_id)
+        self._current_tasks[session_id] = asyncio.current_task()
+
+        try:
+            ctx.last_turn_duration_ms = 0.0
+            ctx.turn_count += 1
+            ctx.dialogue_state = DialogueState.PROCESSING
+            ctx.user_repeated = self._detect_repetition(ctx.last_transcript, text)
+            ctx.user_sentiment = classify_sentiment(text)
+            ctx.prev_intent = ctx.intent
+            ctx.intent = self.intent_classifier.classify(text, ctx.prev_intent)
+            ctx.last_transcript = text
+            ctx.is_question = text.strip().endswith("?")
+
+            topic_change = self._topic_tracker(session_id).update(text, ctx.turn_count)
+            ctx.topic_shift = topic_change.shift
+            ctx.topic = topic_change.topic
+            ctx.topic_since_turn = self._topic_tracker(session_id).since_turn
+            self._maybe_label_topic(session_id)
+
+            if ctx.is_question:
+                ctx.engagement = min(1.0, ctx.engagement + 0.05)
+            else:
+                ctx.engagement = max(0.1, ctx.engagement - 0.02)
+
+            await self._emit(PipelineEvent.FINAL_TRANSCRIPT, text, session_id)
+
+            await self._respond(
+                session_id=session_id,
+                ctx=ctx,
+                transcript=text,
+                used_speculation=False,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(f"text processing error session={session_id} error={e}")
+            await self._emit(PipelineEvent.ERROR, str(e), session_id)
+        finally:
+            if self._current_tasks.get(session_id) is asyncio.current_task():
+                self._current_tasks.pop(session_id, None)
+
     def register_session(
         self,
         session_id: str,
@@ -268,6 +336,7 @@ class StreamingPipeline:
         self._memories[session_id] = memory
         self._retrievals[session_id] = retrieval
         self._facts[session_id] = facts or FactMemory()
+        self._session_outputs.setdefault(session_id, asyncio.Queue(512))
         try:
             asyncio.create_task(asyncio.to_thread(retrieval.warm_up))
         except RuntimeError as e:
@@ -304,6 +373,7 @@ class StreamingPipeline:
         self._last_fact_extract.pop(session_id, None)
         self._contexts.pop(session_id, None)
         self._topic_trackers.pop(session_id, None)
+        self._session_outputs.pop(session_id, None)
         label_task = self._topic_label_tasks.pop(session_id, None)
         if label_task and not label_task.done():
             label_task.cancel()
@@ -343,13 +413,27 @@ class StreamingPipeline:
             clear_task.cancel()
         logger.info(f"interrupt signaled for session {session_id}")
 
-    async def output_stream(self) -> AsyncGenerator[PipelineMessage, None]:
-        while self._running or not self._output_queue.empty():
+    async def output_stream(
+        self, session_id: str = "default"
+    ) -> AsyncGenerator[PipelineMessage, None]:
+        session_queue = self._session_outputs.setdefault(
+            session_id, asyncio.Queue(512)
+        )
+        while not self._output_queue.empty():
             try:
-                msg = await asyncio.wait_for(self._output_queue.get(), timeout=0.1)
-                yield msg
-            except TimeoutError:
-                continue
+                session_queue.put_nowait(self._output_queue.get_nowait())
+            except asyncio.QueueFull:
+                break
+        try:
+            while self._running or not session_queue.empty():
+                try:
+                    msg = await asyncio.wait_for(session_queue.get(), timeout=0.1)
+                    yield msg
+                except TimeoutError:
+                    continue
+        finally:
+            if self._session_outputs.get(session_id) is session_queue:
+                self._session_outputs.pop(session_id, None)
 
     def _ctx(self, session_id: str) -> ConversationContext:
         if session_id not in self._contexts:
@@ -806,10 +890,6 @@ class StreamingPipeline:
             ctx.user_sentiment = classify_sentiment(transcript)
             ctx.prev_intent = ctx.intent
             ctx.intent = self.intent_classifier.classify(transcript, ctx.prev_intent)
-            emotion_task = asyncio.create_task(self._emotion.classify_async(transcript))
-            # If we time out below and shield-cancel, swallow any late
-            # exception so it never surfaces as "exception never retrieved".
-            emotion_task.add_done_callback(lambda t: t.exception())
             ctx.last_transcript = transcript
             ctx.is_question = transcript.strip().endswith("?")
             self._log_latency("stt")
@@ -839,10 +919,59 @@ class StreamingPipeline:
                 except (TimeoutError, asyncio.CancelledError):
                     pass
 
-            if not used_speculation:
-                if spec_task and not spec_task.done():
-                    spec_task.cancel()
+            if not used_speculation and spec_task and not spec_task.done():
+                spec_task.cancel()
 
+            await self._respond(
+                session_id=session_id,
+                ctx=ctx,
+                transcript=transcript,
+                spec_messages=spec_messages if used_speculation else None,
+                spec_full=spec_full,
+                used_speculation=used_speculation,
+            )
+
+        except asyncio.CancelledError:
+            for child in (tts_worker, bc_timer, stt_task, spec_task):
+                if child:
+                    child.cancel()
+            raise
+        except Exception as e:
+            logger.error(f"processing error session={session_id} error={e}")
+            for child in (tts_worker, bc_timer, stt_task, spec_task):
+                if child:
+                    child.cancel()
+            await self._emit(PipelineEvent.ERROR, str(e), session_id)
+        finally:
+            if self._current_tasks.get(session_id) is asyncio.current_task():
+                self._current_tasks.pop(session_id, None)
+
+    async def _respond(
+        self,
+        session_id: str,
+        ctx: ConversationContext,
+        transcript: str,
+        spec_messages: list[dict[str, str]] | None = None,
+        spec_full: str | None = None,
+        used_speculation: bool = False,
+    ) -> None:
+        """Run the LLM → chunker → TTS response for a user turn.
+
+        Shared by the voice path (after STT in ``_process_speech_segment``)
+        and the platform text path (``push_text``). Emits LLM_TOKEN /
+        LLM_DONE / TTS_CHUNK / TTS_DONE events on the pipeline output stream.
+        """
+        memory = self._memory(session_id)
+        retrieval = self._retrieval(session_id)
+        int_ev = self._int_event(session_id)
+        tts_worker: asyncio.Task | None = None
+        bc_timer: asyncio.Task | None = None
+        emotion_task: asyncio.Task | None = None
+
+        try:
+            if used_speculation:
+                messages = list(spec_messages or [])
+            else:
                 messages = await self._build_messages(
                     transcript,
                     ctx,
@@ -863,6 +992,15 @@ class StreamingPipeline:
             if int_ev.is_set():
                 return
 
+            # Emotion classification refines the lexicon sentiment in the
+            # background while we wait; on timeout the fallback above wins.
+            emotion_task = asyncio.create_task(
+                self._emotion.classify_async(transcript)
+            )
+            # If we time out below and shield-cancel, swallow any late
+            # exception so it never surfaces as "exception never retrieved".
+            emotion_task.add_done_callback(lambda t: t.exception())
+
             # Compute response timing delay
             delay = self.turn_timing.compute_delay(
                 pause_duration=ctx.last_turn_duration_ms / 1000,
@@ -879,16 +1017,14 @@ class StreamingPipeline:
                 if int_ev.is_set():
                     return
 
-            # Let the emotion classifier finish concurrently (0.5s cap);
-            # the lexicon fallback already set above wins on timeout/error.
-            if emotion_task:
-                try:
+            try:
+                if emotion_task:
                     ctx.user_sentiment = await asyncio.wait_for(
                         asyncio.shield(emotion_task),
                         timeout=self._emotion.timeout,
                     )
-                except (TimeoutError, asyncio.CancelledError, Exception):
-                    pass
+            except (TimeoutError, asyncio.CancelledError, Exception):
+                pass
 
             # ---- Parallel LLM → chunker → priority queue → TTS worker ----
             chunker = TTSChunker()
@@ -1008,8 +1144,7 @@ class StreamingPipeline:
                 tool_results = await asyncio.gather(
                     *[self._tool_registry.execute_call(c) for c in tool_calls]
                 )
-                followup_messages = messages if not used_speculation else spec_messages
-                followup_messages = list(followup_messages)
+                followup_messages = list(messages)
                 followup_messages.append(
                     {
                         "role": "assistant",
@@ -1082,19 +1217,16 @@ class StreamingPipeline:
                 await self._emit(PipelineEvent.TTS_DONE, session_id=session_id)
 
         except asyncio.CancelledError:
-            for child in (tts_worker, bc_timer, stt_task, spec_task):
+            for child in (tts_worker, bc_timer, emotion_task):
                 if child:
                     child.cancel()
             raise
         except Exception as e:
             logger.error(f"processing error session={session_id} error={e}")
-            for child in (tts_worker, bc_timer, stt_task, spec_task):
+            for child in (tts_worker, bc_timer, emotion_task):
                 if child:
                     child.cancel()
             await self._emit(PipelineEvent.ERROR, str(e), session_id)
-        finally:
-            if self._current_tasks.get(session_id) is asyncio.current_task():
-                self._current_tasks.pop(session_id, None)
 
     @staticmethod
     async def _drain_queue(queue: asyncio.Queue) -> None:
@@ -1474,7 +1606,15 @@ class StreamingPipeline:
         data: str | bytes | None = None,
         session_id: str = "default",
     ) -> None:
+        message = PipelineMessage(event, data, session_id)
+        for session_queue in self._session_outputs.values():
+            try:
+                session_queue.put_nowait(message)
+            except asyncio.QueueFull:
+                logger.warning(
+                    f"output queue full, dropping {event} for session"
+                )
         try:
-            await self._output_queue.put(PipelineMessage(event, data, session_id))
+            self._output_queue.put_nowait(message)
         except asyncio.QueueFull:
-            logger.warning(f"output queue full, dropping {event}")
+            pass

@@ -37,6 +37,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
 .mic-btn:hover{background:rgba(255,255,255,.07);border-color:rgba(59,130,246,.25);transform:scale(1.05)}
 .mic-btn.rec{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#EF4444;box-shadow:0 0 20px rgba(239,68,68,.15);animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(239,68,68,.15)}50%{box-shadow:0 0 30px rgba(239,68,68,.25)}}
+.kt-row{display:flex;gap:8px;margin-top:10px;align-items:center}
+.kt-input{flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:.6rem .9rem;color:rgba(255,255,255,.85);font-size:.85rem;outline:none;transition:border-color .2s}
+.kt-input:focus{border-color:rgba(59,130,246,.4)}
+.kt-input::placeholder{color:rgba(255,255,255,.25)}
+.kt-btn{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);color:#60A5FA;border-radius:12px;padding:.6rem 1rem;font-size:.8rem;cursor:pointer;transition:all .2s}
+.kt-btn:hover{background:rgba(59,130,246,.25);color:#93C5FD}
 </style>
 </head>
 <body>
@@ -55,16 +61,25 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
       <div id="verr" class="vc-err"></div>
       <div class="chat-box" id="vcc"><div class="empty-state">Welcome! Greetings, I am Shinde Vinayak Rao Patil. Ask about my background, experience or resume.</div></div>
       <button class="mic-btn" id="vcb">🎤</button>
+      <div class="kt-row">
+        <input class="kt-input" id="vct" type="text" maxlength="2000" autocomplete="off" placeholder="Or type a message…">
+        <button class="kt-btn" id="vcs">Send</button>
+      </div>
     </div>
   </div>
 </div>
 <script>
 (function(){
   var b=document.getElementById('vcb'),d=document.getElementById('vcd'),l=document.getElementById('vcl'),
-      c=document.getElementById('vcc'),db=document.getElementById('vdbg'),er=document.getElementById('verr');
+      c=document.getElementById('vcc'),db=document.getElementById('vdbg'),er=document.getElementById('verr'),
+      ti=document.getElementById('vct'),sb=document.getElementById('vcs');
   var ws=null,pc=null,localStream=null,act=false,audioEl=null,
       retryDelay=1000,maxRetryDelay=30000;
   var iceServers=[{urls:'stun:stun.l.google.com:19302'}];
+  fetch('/webrtc/config').then(function(r){return r.json();}).then(function(c){
+    if(c&&c.iceServers&&c.iceServers.length)iceServers=c.iceServers;
+    dbg('ICE: '+iceServers.map(function(s){return s.urls;}).join(', '));
+  }).catch(function(){});
 
   function dbg(t){db.textContent=t;}
   function err(t){er.textContent=t;setTimeout(function(){if(er.textContent===t)er.textContent='';},5000);}
@@ -104,6 +119,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
             priority:e.candidate.priority,
             protocol:e.candidate.protocol,
             type:e.candidate.type,
+            sdpMid:e.candidate.sdpMid||'0',
+            sdpMLineIndex:e.candidate.sdpMLineIndex!=null?e.candidate.sdpMLineIndex:0,
           }}));
         }
       };
@@ -202,6 +219,17 @@ body{font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(e
     if(act){stop();sts('','Stopped');return;}
     go();
   });
+
+  function sendText(){
+    var val=ti.value.trim();
+    if(!val){return;}
+    if(!ws||ws.readyState!==1){err('Not connected');return;}
+    ws.send(JSON.stringify({type:'text',text:val}));
+    ti.value='';
+    dbg('You: '+val.slice(0,60));
+  }
+  ti.addEventListener('keydown',function(e){if(e.key==='Enter'){sendText();}});
+  sb.addEventListener('click',sendText);
 })();
 </script>
 </body>

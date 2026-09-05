@@ -1,0 +1,21 @@
+[Unit]
+Description=ResumeVoice AI real-time voice agent (WebRTC/WS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/shinde/Desktop/ResumeVoice_AI
+# Interpreter that has the ML deps (site-packages with torch / faster-whisper / piper).
+Environment=RESUMEVOICE_PYTHON=/usr/local/bin/python3.12
+Environment=RESUMEVOICE_HOST=0.0.0.0
+Environment=RESUMEVOICE_PORT=8000
+ExecStart=${RESUMEVOICE_PYTHON} -m uvicorn app.server:app --host ${RESUMEVOICE_HOST} --port ${RESUMEVOICE_PORT}
+Restart=on-failure
+RestartSec=3
+# The current dev server runs as root (CUDA/VAD access). Uncomment if the
+# repo + voice models are readable by a non-root user:
+# User=shinde
+
+[Install]
+WantedBy=multi-user.target

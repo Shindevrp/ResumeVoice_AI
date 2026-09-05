@@ -49,6 +49,7 @@ def session_status() -> None:
     st.write("Topic:", session.get("topic") or "—")
     st.write("Intent:", session.get("intent") or "—")
     st.write("State:", session.get("state") or "—")
+    st.write("ICE:", session.get("ice_connection_state") or "—")
     st.write(
         "Engagement:",
         f"{session.get('engagement_score', 0):.2f}",
