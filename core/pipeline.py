@@ -46,6 +46,13 @@ logger = get_logger("pipeline")
 ECHO_GRACE_SECONDS = 0.25
 ECHO_FLOOR_MARGIN = 1.5
 
+# Fast-attack / slow-decay envelope factor applied to the mic-observed frame
+# energy while the assistant is playing. The echo floor must model what the
+# *microphone* actually hears (ambient + residual TTS leakage after AEC), not
+# the synthesized output PCM level, otherwise the barge-in threshold sits far
+# above anything a real user's voice reaches.
+ECHO_FLOOR_DECAY = 0.999
+
 # Fixed pipeline frame: 64ms at 16k mono 16-bit. All incoming audio is
 # segmented into these frames so VAD/turn logic sees uniform windows and the
 # SileroVAD hidden state decays across trailing-silence frames (otherwise a
@@ -783,6 +790,12 @@ class StreamingPipeline:
                         asyncio.create_task(
                             self._process_speech_segment(audio_blob, sid, ctx)
                         )
+                else:
+                    if self._playback_active.get(sid, False):
+                        self._echo_floor[sid] = max(
+                            self._echo_floor.get(sid, 0.0) * ECHO_FLOOR_DECAY,
+                            frame_energy,
+                        )
 
     def _detect_repetition(self, prev: str | None, cur: str) -> bool:
         if not prev or not cur:
@@ -1304,10 +1317,6 @@ class StreamingPipeline:
                                 self._playback_onset[session_id] = first_emit
                                 self._echo_floor[session_id] = 0.0
                             total_bytes += len(audio_chunk)
-                            energy = rms_energy(audio_chunk) / 32768.0
-                            self._echo_floor[session_id] = max(
-                                self._echo_floor.get(session_id, 0.0), energy
-                            )
                             self._playback_active[session_id] = True
                             wav = self._pcm_to_wav(audio_chunk, sr)
                             await self._emit(PipelineEvent.TTS_CHUNK, wav, session_id)

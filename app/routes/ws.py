@@ -57,7 +57,7 @@ async def audio_websocket(websocket: WebSocket):
                     continue
 
                 if msg.event == PipelineEvent.SPEECH_START:
-                    interrupted = False
+                    interrupted = True
                     session.set_state(DialogueState.LISTENING)
                     await websocket.send_json({"type": "speech_start"})
 

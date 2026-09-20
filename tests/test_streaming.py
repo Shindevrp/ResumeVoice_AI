@@ -350,6 +350,20 @@ class FakeVADTrue:
         pass
 
 
+class FakeVADEnergy:
+    sample_rate = 16000
+
+    def __init__(self, threshold: float = 0.03) -> None:
+        self.threshold = threshold
+
+    def is_speech(self, chunk: bytes) -> bool:
+        peak = abs(struct.unpack("<h", chunk[:2])[0]) / 32768.0
+        return peak > self.threshold
+
+    def reset(self) -> None:
+        pass
+
+
 async def _push_speech(p: StreamingPipeline, n: int) -> None:
     for _ in range(n):
         await p.push_audio(b"\x7f" * FRAME_BYTES, "sess")
@@ -397,6 +411,42 @@ class TestPlaybackActive:
             await asyncio.gather(loop_task, col_task, return_exceptions=True)
 
             assert (PipelineEvent.INTERRUPT, "sess") in seen
+            assert p._playback_active.get("sess") is False
+
+        asyncio.run(run())
+
+    def test_ambient_echo_floor_allows_realistic_speech_to_barge(self) -> None:
+        async def run() -> None:
+            p = _make_pipeline()
+            p.vad = FakeVADEnergy(0.03)
+            p._playback_active["sess"] = True
+            p._playback_onset["sess"] = time.monotonic() - 5.0
+            p._ctx("sess").dialogue_state = DialogueState.IDLE
+
+            p._running = True
+            loop_task = asyncio.create_task(p._pipeline_loop())
+            seen: list[tuple[PipelineEvent, str]] = []
+
+            async def collect() -> None:
+                async for msg in p.output_stream():
+                    seen.append((msg.event, msg.session_id))
+
+            col_task = asyncio.create_task(collect())
+
+            for _ in range(4):
+                await p.push_audio(_const_energy_chunk(400), "sess")
+            await asyncio.sleep(0.05)
+            mic_floor = p._echo_floor.get("sess", 1.0)
+            assert mic_floor <= 0.1, mic_floor
+            for _ in range(5):
+                await p.push_audio(_const_energy_chunk(2621), "sess")
+            await asyncio.sleep(0.2)
+
+            p._running = False
+            loop_task.cancel()
+            await asyncio.gather(loop_task, col_task, return_exceptions=True)
+
+            assert (PipelineEvent.INTERRUPT, "sess") in seen, seen
             assert p._playback_active.get("sess") is False
 
         asyncio.run(run())
