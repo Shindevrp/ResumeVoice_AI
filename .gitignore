@@ -10,3 +10,6 @@ venv/
 *.egg
 .DS_Store
 .env
+
+# diagram visual-check artifacts
+assets/diagrams/*.visual-check.*
