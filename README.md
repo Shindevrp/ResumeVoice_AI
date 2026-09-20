@@ -49,6 +49,10 @@ How it works:
 
 ## How It Works
 
+<p align="center">
+  <img src="assets/diagrams/dataflow.png" alt="Real-time speech pipeline — VAD → streaming STT → turn detection → speculative LLM → prosody → Piper TTS" width="820">
+</p>
+
 ```
 LISTEN ──► THINK ──► SPEAK
 audio ─ VAD ─ partial STT ─ turn detector
@@ -56,6 +60,26 @@ audio ─ VAD ─ partial STT ─ turn detector
       ─ speculative LLM (starts on the partial transcript)
       ─ sentence chunker + prosody → Piper TTS → speaker
 ```
+
+### Architecture
+
+<p align="center">
+  <img src="assets/diagrams/architecture.png" alt="ResumeVoice AI system architecture — browser clients, FastAPI server, speech pipeline modules, and provider adapters" width="820">
+</p>
+
+### Dialogue State Machine
+
+<p align="center">
+  <img src="assets/diagrams/lifecycle.png" alt="Dialogue state machine — IDLE / LISTENING / PROCESSING / INTERRUPTIBLE with barge-in and backchannels" width="820">
+</p>
+
+Interactive versions (viewable in any browser, scroll to explore):
+
+| Diagram | HTML |
+|---|---|
+| Architecture | [architecture.html](assets/diagrams/architecture.html) |
+| Real-time speech pipeline | [dataflow.html](assets/diagrams/dataflow.html) |
+| Dialogue state machine | [lifecycle.html](assets/diagrams/lifecycle.html) |
 
 - **Turn-taking** — silence + prosody + linguistic cues, with per-turn adaptive thresholds.
 - **Barge-in** — the user can interrupt speech or LLM generation; the pipeline cancels and listens.
