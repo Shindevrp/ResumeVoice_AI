@@ -44,9 +44,11 @@ async def audio_websocket(websocket: WebSocket):
     register_session(session)
 
     # Send welcome message on connection
+    candidate = getattr(pipeline, "resume", None)
+    greeting_name = (candidate.name if candidate is not None else "N/A")
     await websocket.send_json({
         "type": "system",
-        "text": "Welcome! Greetings, I am Shinde Vinayak Rao Patil."
+        "text": f"Welcome! Greetings, I am {greeting_name}."
     })
 
     async def pump_output():

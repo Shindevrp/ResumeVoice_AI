@@ -1429,7 +1429,15 @@ class StreamingPipeline:
         ):
             return
         self._last_fact_extract[session_id] = now
-        asyncio.create_task(self._extract_facts_llm(session_id, transcript, facts))
+        task = asyncio.create_task(
+            self._extract_facts_llm(session_id, transcript, facts)
+        )
+        task.add_done_callback(self._fact_task_done)
+        self._tasks.append(task)
+
+    def _fact_task_done(self, task: asyncio.Task) -> None:
+        if task in self._tasks:
+            self._tasks.remove(task)
 
     async def _extract_facts_llm(
         self, session_id: str, transcript: str, facts: FactMemory

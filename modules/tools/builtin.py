@@ -39,21 +39,45 @@ def _calculate(expression: str) -> str:
         "pi",
         "e",
     }
-    safe_dict = {k: getattr(math, k, None) for k in allowed}
-    safe_dict.update(
-        {
-            "abs": abs,
-            "int": int,
-            "float": float,
-            "round": round,
-            "min": min,
-            "max": max,
-            "sum": sum,
-            "str": str,
-        }
-    )
-    safe_dict["__builtins__"] = None
-    result = eval(expression, safe_dict)
+    import ast
+    import operator
+
+    allowed_ops = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Mod: operator.mod,
+        ast.Pow: operator.pow,
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
+    allowed_names = {n: getattr(math, n, None) for n in allowed}
+    allowed_names["abs"] = abs  # builtin; math has no abs
+
+    def _eval_node(node: ast.AST) -> int | float:
+        if isinstance(node, ast.Constant):
+            if not isinstance(node.value, (int, float)):
+                raise ValueError("unsupported literal")
+            return node.value
+        if isinstance(node, ast.Name):
+            if node.id not in allowed_names:
+                raise ValueError(f"unsafe name: {node.id}")
+            return allowed_names[node.id]
+        if isinstance(node, ast.BinOp):
+            op = allowed_ops.get(type(node.op))
+            if op is None:
+                raise ValueError(f"unsafe operator: {type(node.op).__name__}")
+            return op(_eval_node(node.left), _eval_node(node.right))
+        if isinstance(node, ast.UnaryOp):
+            op = allowed_ops.get(type(node.op))
+            if op is None:
+                raise ValueError(f"unsafe unary: {type(node.op).__name__}")
+            return op(_eval_node(node.operand))
+        raise ValueError(f"unsafe syntax: {type(node).__name__}")
+
+    root = ast.parse(expression, mode="eval")
+    result = _eval_node(root.body)
     return str(result)
 
 

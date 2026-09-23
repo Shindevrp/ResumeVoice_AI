@@ -18,9 +18,15 @@ class BackchannelTiming:
         speech_duration_ms: float,
         engagement_score: float,
     ) -> bool:
-        if silence_duration_ms < self.min_silence:
+        # Silence is an optional measurement, not a literal the turn path
+        # must fabricate. 0 means "not measured on this path" -> the bounds
+        # impose no constraint; a real VAD measurement still applies them.
+        if silence_duration_ms and silence_duration_ms < self.min_silence:
             return False
-        if silence_duration_ms > self.max_silence:
+        if (
+            silence_duration_ms
+            and silence_duration_ms > self.max_silence
+        ):
             return False
         if speech_duration_ms < self.min_speech:
             return False

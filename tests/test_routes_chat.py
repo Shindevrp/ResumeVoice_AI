@@ -112,7 +112,7 @@ def test_system_prompt_includes_resume() -> None:
 
     prompt = _system_prompt(FakePipeline(resume=FakeResume()))
     assert "PERSONA-BLOCK" in prompt
-    assert "ResumeVoice" in prompt
+    assert "ResumeVoice" not in prompt
 
     prompt = _system_prompt(FakePipeline(resume=None))
     assert "PERSONA-BLOCK" not in prompt

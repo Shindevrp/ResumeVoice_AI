@@ -187,11 +187,15 @@ async def webrtc_signal(websocket: WebSocket):
     pipeline.register_session(session_id, memory, retrieval)
     register_session(session)
 
-    # Send welcome message on connection
-    await websocket.send_json({
-        "type": "system",
-        "text": "Welcome! Greetings, I am Shinde Vinayak Rao Patil."
-    })
+    # Send welcome message on connection (name derived from loaded resume)
+    candidate = getattr(pipeline, "resume", None)
+    greeting_name = candidate.name if candidate is not None else "N/A"
+    await websocket.send_json(
+        {
+            "type": "system",
+            "text": f"Welcome! Greetings, I am {greeting_name}."
+        }
+    )
 
     async def pump_output():
         interrupted = False
