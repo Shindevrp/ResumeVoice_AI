@@ -9,7 +9,7 @@ class RetrievalModule:
         self,
         vector_db: VectorDB | None = None,
         max_context_tokens: int = 2048,
-        min_score: float = 0.3,
+        min_score: float = 0.15,
         topic_boost: float = 0.08,
     ) -> None:
         self.vector_db = vector_db or VectorDB()

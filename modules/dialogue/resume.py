@@ -6,15 +6,47 @@ from pathlib import Path
 
 logger = logging.getLogger("resume")
 
+SPOKEN_ALIASES: dict[str, tuple[str, ...]] = {
+    # (canonical resume name) -> spoken / STT-transcribed variants
+    "IIIT Hyderabad": ("Triple IT Hyderabad", "Triple I T Hyderabad",
+                       "IIIT-H", "IIITH", "IIIT"),
+    "Nabh Technologies": ("Nabe", "Nabh", "Nabhe Technologies",
+                          "Nabh Technologies Pvt Ltd"),
+    "Plausibility Solutions": ("Plausibility", "Plausible Solutions"),
+    "Eunoia Innovations": ("Eunoia", "Unola Innovations"),
+    "BYOL Academy": ("BYOL", "Byol Academy"),
+    "Patents": ("Patents & Publications", "Publications",
+                "Patents and Publications"),
+    "Certifications": ("Certifications, Awards & Honors", "Awards"),
+    "Technical Skills": ("Tech Stack", "Tech Skills", "Technologies"),
+}
+
 PERSONA_INSTRUCTION = (
     "You are speaking as the candidate whose resume is shown below. "
     "The user is interviewing you about your background. Answer in "
     "FIRST PERSON ('I have...', 'I built...', 'I worked at...') using "
-    "the resume facts. Never break character as an AI assistant, never "
-    "say 'according to my resume', and never refer to the resume as an "
-    "external document. Keep answers conversational and spoken-friendly, "
-    "one to four sentences unless the question genuinely needs more depth. "
-    "If a detail is not listed, say so naturally instead of guessing."
+    "only the resume facts shown. Never break character, never say "
+    "'according to my resume', never refer to the resume as an external "
+    "document, and never invent or guess details.\n"
+    "RESOLVE SPOKEN NAME VARIANTS: speech-to-text often renders "
+    "organization names oddly (e.g. IIIT as 'Triple IT', Nabh as "
+    "'Nabe'). When the user mentions a place, company, or section using "
+    "a variant, map it to the matching resume entry and answer from "
+    "that entry's real facts — never claim you don't recognize it and "
+    "never invent generic filler (no 'industry partnerships', no "
+    "'internship programs', no vague praise) if the resume does not "
+    "actually list it.\n"
+    "Be concrete and specific: when asked about companies you worked for, "
+    "roles, technologies, schools, projects, publications, or years, name "
+    "them explicitly from the profile and list every relevant item rather "
+    "than giving a generic summary. Do NOT deflect with phrases like 'I "
+    "don't have that listed' when the detail IS present in the profile. "
+    "Only say a detail is unavailable if it truly is not there.\n"
+    "Keep answers conversational and spoken-friendly — one to four "
+    "sentences unless the question genuinely needs more depth. When the "
+    "user asks about your technical stack or project work, impress with "
+    "concrete specifics from the profile (tooling, model names, "
+    "pipelines, quantisation targets) instead of vague phrasing."
 )
 
 PROFILE_PROMPT = (
@@ -37,7 +69,51 @@ SECTION_HEADERS = [
     "LANGUAGES",
 ]
 
+# Sections where only the entry header line matters for the compact profile
+# index (e.g. "AI Engineer, Nabhe (Jan 2026 - Present)"); the full bullets
+# are served on demand via retrieval.
+INDEX_HEADERS_ONLY = {
+    "PROFESSIONAL EXPERIENCE",
+    "KEY PROJECTS",
+    "LEADERSHIP & COMMUNITY",
+    "PATENTS & PUBLICATIONS",
+}
+
+# Minimum length below which adjacent entries are merged so retrieval chunks
+# stay meaningfully searchable (e.g. EDUCATION lines, skill categories).
+MIN_ENTRY_CHARS = 100
+
 _RESUME_TXT_NAME = "resume/resume.txt"
+
+
+def _split_entries(body: str) -> list[str]:
+    """Split a section body into logical entries.
+
+    Entry headers are lines that are not bullet items (- / * / •); their
+    following bullet lines belong to the same entry.
+    """
+    entries: list[str] = []
+    current: list[str] = []
+    for raw in body.splitlines():
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+        if line.startswith(("-", "*", "•")):
+            current.append(line)
+        else:
+            if current:
+                entries.append("\n".join(current))
+            current = [line]
+    if current:
+        entries.append("\n".join(current))
+
+    merged: list[str] = []
+    for entry in entries:
+        if merged and len(merged[-1]) < MIN_ENTRY_CHARS:
+            merged[-1] += "\n" + entry
+        else:
+            merged.append(entry)
+    return merged
 
 
 @dataclass
@@ -57,21 +133,58 @@ class ResumeData:
                 return body
         return ""
 
+    def _compact_index(self) -> list[tuple[str, str]]:
+        """Per-section profile text: entry headers only for long sections,
+        full body for the rest."""
+        out: list[tuple[str, str]] = []
+        for title, body in self.sections:
+            if title == "PROFESSIONAL SUMMARY" or not body.strip():
+                continue
+            if title in INDEX_HEADERS_ONLY:
+                heads = [
+                    entry.splitlines()[0].strip()
+                    for entry in _split_entries(body)
+                    if entry.strip()
+                ]
+                if heads:
+                    out.append((title, "\n".join(f"- {h}" for h in heads)))
+            else:
+                out.append((title, body))
+        return out
+
     def to_prompt_block(self) -> str:
-        return PERSONA_INSTRUCTION + PROFILE_PROMPT.format(
+        block = PROFILE_PROMPT.format(
             name=self.name,
             headline=self.headline,
             contact=self.contact,
             summary=self.summary or "N/A",
         )
+        for title, text in self._compact_index():
+            block += f"\n\n{title}:\n{text}"
+        block += "\n\nCOMMON SPOKEN / TRANSCRIBED NAME VARIANTS:\n"
+        for canonical, variants in SPOKEN_ALIASES.items():
+            block += f"- {canonical} = {', '.join(variants)}\n"
+        return PERSONA_INSTRUCTION + block
 
     def retrieval_sections(self) -> list[str]:
-        """Chunks suitable for seeding the vector retrieval store."""
-        return [
-            f"{title}\n{body}"
-            for title, body in self.sections
-            if body.strip() and title != "PROFESSIONAL SUMMARY"
-        ]
+        """Granular chunks suitable for seeding the vector retrieval store.
+
+        Each section is split into per-entry chunks (company/role, project,
+        publication, ...) so a query like "which companies did you intern
+        at?" scores directly against the matching entry instead of being
+        diluted across a whole multi-company section.
+        """
+        chunks: list[str] = []
+        for title, body in self.sections:
+            if title == "PROFESSIONAL SUMMARY" or not body.strip():
+                continue
+            entries = _split_entries(body)
+            if len(entries) <= 1:
+                chunks.append(f"{title}\n{body}")
+            else:
+                for entry in entries:
+                    chunks.append(f"{title}\n{entry}")
+        return chunks
 
 
 def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
